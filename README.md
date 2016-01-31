@@ -63,8 +63,9 @@ You can now connect to the tmpfs mysql instance using the following command (giv
 - <code>chmod u+x tmpfsmysql.sh</code>
 - <code>./tmpfsmysql.sh</code>
 - <code>ifconfig</code>
+- <code>exit</code>
 
-The last command is just so you can see what network address has been given to the virtual machine.
+The *ifconfig* command is just so you can see what network address has been given to the virtual machine.
 
 You can now connect to the tmpfs mysql instance using the following command (given that you haven't changed the settings in the script)
 
