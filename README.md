@@ -24,7 +24,7 @@ as we won't need them and they just use memory.
 Having a mysql server instance with datadir in the memory, makes executing queries very... very fast.
 
 This is usefull when running unit tests using PHPUnit, Codeception, etc. As the fixtures are being reloaded into the
-database on every test method, that unloading/loading of fixtures becomes slower and slower with the rising of the number of fixtures.
+database on every test method, that unloading/loading of fixtures becomes slower and slower with the rising amount of fixtures.
 
 With mysql server having its datadir in memory, the fixtures loading/unloading is no longer a time waster.
 
@@ -40,6 +40,11 @@ Future verions could address those limitations.
 
 ##### Before we begin
 You should know that the script has two variables called <code>DBNAME</code> and <code>DUMPFILE</code> which can be used to automatically create a database and import an sql dump file in it.
+
+The default password set in the <code>PASSWORD</code> is 'drowssap'.
+
+The port for the tmpfs mysql instance, set in the <code>PORT</code> variable is 3344.
+
 
 ##### In order to use the script, just follow these steps
 - have a look at the script, check out the configuration options at the beginning of the file and adjust them for your needs
