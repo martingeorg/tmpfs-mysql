@@ -42,6 +42,7 @@ Future verions could address those limitations.
 You should know that the script has two variables called <code>DBNAME</code> and <code>DUMPFILE</code> which can be used to automatically create a database and import an sql dump file in it.
 
 The default password set in the <code>PASSWORD</code> variable is 'drowssap'.
+
 The port for the tmpfs mysql instance, set in the <code>PORT</code> variable is 3344.
 
 
