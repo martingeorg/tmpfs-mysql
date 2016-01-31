@@ -20,7 +20,7 @@ which could be used to fire up a vagrant Ubuntu server instance.
 The Vagrant file has provisioning script which installs the *mysql-server* and removes *chef* and *puppet*
 as we won't need them and they just use memory.
 
-### Why would i need this
+### Why would i need this?
 Having a mysql server instance with datadir in the memory, makes executing queries very... very fast.
 
 This is usefull when running unit tests using PHPUnit, Codeception, etc. As the fixtures are being reloaded into the
@@ -32,7 +32,7 @@ It is **IMPORTANT** to note that the tmpfs in **NOT A PERMANENT** storage, so do
 Test fixtures are disposable so we don't care about persistence.
 
 
-### How to use it
+### How to use it?
 
 ##### Compatability
 This script works with **Ubuntu** based Linux distributions and **MySQL server 5.6** versions.
@@ -68,11 +68,11 @@ You can now connect to the tmpfs mysql instance using the following command (giv
 The IP address 192.168.33.10 is the *host-only* address of the virtual machine, you can also use the *bridged* network address to access the mysql server locally or from another machine in your network.
 
 
-##### What's next
+##### What's next?
 Now simply configure your tests to use that mysql instance as database server and enjoy *the fastest tests alive* :runner::zap:
 
 
-##### How to stop the tmpfs mysql server instance
+##### How to stop the tmpfs mysql server instance?
 Just issue the following command <code>./tmpfsmysql.sh stop</code>
 
 
