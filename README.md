@@ -56,6 +56,9 @@ You can now connect to the tmpfs mysql instance using the following command (giv
 
 <code>mysql -u root --host=0.0.0.0 --port=3344 --password=drowssap</code>
 
+Instead of 0.0.0.0 you can use your computer's LAN IP address, e.g. 192.168.x.x
+
+
 ##### If you want to use the script with the vagrant Ubuntu instance just execute the following commands from within the folder containing the Vagrantfile
 - <code>vagrant up</code>
 - <code>vagrant ssh</code>
@@ -69,9 +72,9 @@ The *ifconfig* command is just so you can see what network address has been give
 
 You can now connect to the tmpfs mysql instance using the following command (given that you haven't changed the settings in the script)
 
-<code>mysql -u root --host=192.168.33.10 --port=3344 -p</code>
+<code>mysql -u root --host=192.168.33.10 --port=3344 --password=drowssap</code>
 
-The IP address 192.168.33.10 is the *host-only* address of the virtual machine, you can also use the *bridged* network address to access the mysql server locally or from another machine in your network.
+The IP address 192.168.33.10 is the *host-only* address of the virtual machine, you can also use the *bridged* network address (the one you saw using *ifconfig*) to access the mysql server locally or from another machine in your network.
 
 
 ##### What's next?
