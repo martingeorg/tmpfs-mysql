@@ -36,7 +36,7 @@ Test fixtures are disposable so we don't care about persistence.
 
 ##### Compatability
 This script works with **Ubuntu** based Linux distributions and **MySQL server 5.6** versions.
-Future verions could address those limitations.
+Future versions could address those limitations.
 
 ##### Before we begin
 You should know that the script has two variables called <code>DBNAME</code> and <code>DUMPFILE</code> which can be used to automatically create a database and import an sql dump file in it.
