@@ -4,7 +4,7 @@
 
 ![tmpfs mysql screenshot](http://martingeorg.github.io/tmpfsmysqlscreen.png)
 
-### This repository contains two key parts
+### This repository has two key parts
 - Bash script instantiating a mysql server with datadir set to a tmpfs mounted filesystem
 - Vagrantfile which can be used to fire up Ubuntu instance where the script can be used
 
