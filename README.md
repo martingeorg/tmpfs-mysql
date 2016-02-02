@@ -11,7 +11,7 @@
 The Bash script can be used to fire up a mysql server instance whose datadir is located
 in a tmpfs(in memory/RAM) filesystem mounted in the /tmp/mysqldtmpfsdatadir folder.
 
-The 'normal' mysql server is kept intact, besides the fact that it's being restarted.
+The 'normal' mysql server is kept intact.
 
 
 #### The Vagrantfile
@@ -48,8 +48,8 @@ The port for the tmpfs mysql instance, set in the <code>PORT</code> variable is 
 
 ##### In order to use the script, just follow these steps
 - have a look at the script, check out the configuration options at the beginning of the file and adjust them for your needs
-- make the script executable <code>chmod u+x tmpfsmysql.sh</code>
-- run the script <code>./tmpfsmysql.sh</code>
+- run the script
+  <code>./tmpfsmysql.sh</code>
 - it'll ask for your password so it can <code>sudo</code>
 
 You can now connect to the tmpfs mysql instance using the following command (given that you haven't changed the settings in the script)
@@ -63,7 +63,6 @@ Instead of 0.0.0.0 you can use your computer's LAN IP address, e.g. 192.168.x.x
 - <code>vagrant up</code>
 - <code>vagrant ssh</code>
 - <code>cd /vagrant</code>
-- <code>chmod u+x tmpfsmysql.sh</code>
 - <code>./tmpfsmysql.sh</code>
 - <code>ifconfig</code>
 - <code>exit</code>
@@ -87,9 +86,6 @@ Just issue the following command <code>./tmpfsmysql.sh stop</code>
 
 ### Looking forward :construction:
 - [ ] Automatic execution of the tmpfsmysql.sh should be implemented on vagrant up.
-- [ ] The 'normal' mysql server instance being restarted should be fixed.
+- [x] The 'normal' mysql server instance being restarted should be fixed.
 - [ ] Detect the Linux distribution and use the relevant commands
 - [ ] Detect MySQL server version and use the specific parameters
-
-
-
