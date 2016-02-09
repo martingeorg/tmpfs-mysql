@@ -82,17 +82,21 @@ MESSAGE_STARTING_MYSQL="Starting the tmpfs mysql server with specific parameters
 function initMySQLold {
 	echo $MESSAGE_INSTALLING_MYSQL
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
+	sleep 1
 	echo $MESSAGE_STARTING_MYSQL
 	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
 	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
+	sleep 1
 }
 
 function initMySQLnew {
 	echo $MESSAGE_INSTALLING_MYSQL
 	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
+	sleep 1
 	echo $MESSAGE_STARTING_MYSQL
 	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
 	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
+	sleep 1
 }
 
 function checkSQLdumpFile {
