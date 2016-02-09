@@ -1,5 +1,9 @@
 #!/bin/bash
 
+LOGFILE='./tmpfsmysql.log'
+LOGFILE_LINES=1000
+CONFIG_FILE='tmpfsmysql.cfg'
+
 echo -e "\nThe script needs sudo access in order to work"
 sudo date >>$LOGFILE # dummy command to cache the sudo credentials for the commands below
 echo ""
@@ -16,17 +20,13 @@ function checkForMySQL {
 }
 checkForMySQL
 
-MYSQL_VERSION_XX=`mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_XXX=`mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 $3 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_Xxx=`mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_xXx=`mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $2 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_xxX=`mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $3 }' | awk -F"-" '{ print $1 }'`
+MYSQL_VERSION_XX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 }' | awk -F"-" '{ print $1 }'`
+MYSQL_VERSION_XXX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 $3 }' | awk -F"-" '{ print $1 }'`
+MYSQL_VERSION_Xxx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 }' | awk -F"-" '{ print $1 }'`
+MYSQL_VERSION_xXx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $2 }' | awk -F"-" '{ print $1 }'`
+MYSQL_VERSION_xxX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $3 }' | awk -F"-" '{ print $1 }'`
 
 echo -ne "\nYou are using MySQL version $MYSQL_VERSION_Xxx.$MYSQL_VERSION_xXx.$MYSQL_VERSION_xxX\n"
-
-LOGFILE='./tmpfsmysql.log'
-LOGFILE_LINES=1000
-CONFIG_FILE='tmpfsmysql.cfg'
 
 function LOAD_CONFIG
 {
