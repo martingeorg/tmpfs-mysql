@@ -1,7 +1,11 @@
 #!/bin/bash
 
+echo -e "\nThe script needs sudo access in order to work"
+sudo date >>$LOGFILE # dummy command to cache the sudo credentials for the commands below
+echo ""
+
 function checkForMySQL {
-	MYSQLDINSTALLED=`which mysqld`
+	MYSQLDINSTALLED=`sudo which mysqld`
 	if [ "$MYSQLDINSTALLED" == "" ]
 	then
 		echo ""
@@ -61,10 +65,6 @@ then
 	echo -ne "\n"
 	exit 0
 fi
-
-echo -e "\nThe script needs sudo access in order to work"
-sudo date >>$LOGFILE # dummy command to cache the sudo credentials for the commands below
-echo ""
 
 PID=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
 
