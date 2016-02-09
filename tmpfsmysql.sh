@@ -37,6 +37,7 @@ PORT=3344\n\
 PASSWORD='drowssap'\n\n\
 DBNAMES[0]=''\n\
 DUMPFILES[0]=''\n\
+# import database, host:port:user:pass:dbname\n\
 IMPORTSFROM[0]='::::'\n\
 RUNCOMMANDS[0]=''\n" > "$CONFIG_FILE"
 	fi
@@ -65,7 +66,7 @@ echo -e "\nThe script needs sudo access in order to work"
 sudo date >>$LOGFILE # dummy command to cache the sudo credentials for the commands below
 echo ""
 
-PID=`sudo cat /tmp/mysqldtmpfs.pid 2>/dev/null`
+PID=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
 
 function killByPID {
 	if [ "$PID" != "" ]
@@ -75,23 +76,28 @@ function killByPID {
 	fi
 }
 
+MESSAGE_INSTALLING_MYSQL="Installing the new mysql database in the tmpfs directory..."
+MESSAGE_STARTING_MYSQL="Starting the tmpfs mysql server with specific parameters in order to use the tmpfs datadir..."
+
 function initMySQLold {
+	echo $MESSAGE_INSTALLING_MYSQL
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
-	sleep 1
-	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/mysqldtmpfs.pid --socket=/tmp/mysqldtmpfs.sock --port=$PORT \
-	--log-error=/tmp/mysqldtmpfserror.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
+	echo $MESSAGE_STARTING_MYSQL
+	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
+	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
 }
 
 function initMySQLnew {
+	echo $MESSAGE_INSTALLING_MYSQL
 	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
-	sleep 1
-	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/mysqldtmpfs.pid --socket=/tmp/mysqldtmpfs.sock --port=$PORT \
-	--log-error=/tmp/mysqldtmpfserror.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
+	echo $MESSAGE_STARTING_MYSQL
+	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
+	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
 }
 
 function checkSQLdumpFile {
 	if [ "$1" == "" ]; then
-		echo "No database index was specified, assuming 0"
+		echo -ne "\E[1;33;43mNo database index from the config was specified, assuming 0..."; tput sgr0; echo -ne "\n"
 		CHKDUMPINDEX=0
 	else
 		CHKDUMPINDEX=$1
@@ -158,9 +164,9 @@ fi
 if [ "$1" == "kill" ]
 then
 	killByPID
-	MYSQLSERVOCEPID=`sudo cat /var/run/mysqld/mysqld.pid 2>/dev/null`
+	MYSQLSERVICEPID=`sudo cat /var/run/mysqld/mysqld.pid 2>/dev/null`
 	echo -e "You gave the kill order, we'll now stop the normal mysql server if it is running\n and kill any other instances of the mysqld daemon..."
-	if [ "$MYSQLSERVOCEPID" != "" ]
+	if [ "$MYSQLSERVICEPID" != "" ]
 	then
 		echo "Gracefully stopping the normal mysql server and killing any other mysqld process..."
 		sudo service mysql stop >>$LOGFILE 2>>$LOGFILE
@@ -168,7 +174,7 @@ then
 	fi
 	sudo killall mysqld >>$LOGFILE 2>>$LOGFILE
 	sleep 1
-	if [ "$MYSQLSERVOCEPID" != "" ]
+	if [ "$MYSQLSERVICEPID" != "" ]
 	then
 		echo "Starting up the normal mysql server..."
 		sudo service mysql restart >>$LOGFILE 2>>$LOGFILE #&
@@ -183,20 +189,16 @@ then
 
 	echo "Delete old temporary file system in RAM..."
 	sudo umount -l /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-	sleep 1
 
 	sudo rm -rf /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-	sleep 1
 
 	echo "Creating temporary file system in RAM..."
 	sudo mkdir /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
 	sudo mount -t tmpfs -o size="$TMPFS_SIZE"M tmpfs /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
 
-	echo "Installing the new mysql database in the tmpfs directory..."
-	echo "Starting the tmpfs mysql server with specific parameters in order to use the tmpfs datadir..."
 	if [ "$MYSQL_VERSION_XX" == "55" -o "$MYSQL_VERSION_XX" == "56" ]; then
 		initMySQLold
-  fi
+  	fi
 
 	if [ "$MYSQL_VERSION_XX" == "57" -a "${MYSQL_VERSION_xxX}" -lt 6 ]; then
 		initMySQLold
@@ -204,7 +206,7 @@ then
 
 	if [ "$MYSQL_VERSION_Xxx" -ge "5" -a "${MYSQL_VERSION_xXx}" -ge 7 -a "${MYSQL_VERSION_xxX}" -ge 6 ]; then
 		initMySQLnew
-  fi
+  	fi
 
 	echo "Waiting for the new mysql server instance to fire up before we continue..."
 	sleep 1
@@ -226,24 +228,41 @@ then
 				if test -e "${DUMPFILES[$DBINDEX]}" -a -r "${DUMPFILES[$DBINDEX]}" -a -f "${DUMPFILES[$DBINDEX]}"
 				then
 					echo -ne '\E[1;29;42m';
-					echo -n "Importing sql dump file"
-					tput sgr0
+					echo -n "Importing sql dump file"; tput sgr0
 					echo ""
 					mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "${DUMPFILES[$DBINDEX]}" >>$LOGFILE 2>>$LOGFILE
 				else
 					echo -ne '\E[1;29;41m';
-					echo -n "Couldn't find or read sql dump file, please check the path and try again"
-					tput sgr0
+					echo -n "Couldn't find or read sql dump file, please check the path and try again"; tput sgr0
 					echo ""
 				fi
 			fi
 
-			# implement import options here
+			if [ "${IMPORTSFROM[$DBINDEX]}" != "::::" -a "${IMPORTSFROM[$DBINDEX]}" != "" ]; then
+				IMPORT_HOST=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $1 }' `
+				IMPORT_PORT=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $2 }' `
+				IMPORT_USER=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $3 }' `
+				IMPORT_PASS=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $4 }' `
+				IMPORT_NAME=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $5 }' `
 
+				if [ "$IMPORT_HOST" == "" ]; then IMPORT_HOST="127.0.0.1"; fi
+				if [ "$IMPORT_PORT" == "" ]; then IMPORT_PORT="3306"; fi
+				if [ "$IMPORT_USER" == "" ]; then IMPORT_USER="root"; fi
+
+				if [ "$IMPORT_PASS" != "" -a "$IMPORT_NAME" != "" ]; then
+					echo -ne "\E[1;33;45mImporting $IMPORT_NAME database from $IMPORT_HOST"; tput sgr0; echo -ne "\n"
+					mysqldump -u "$IMPORT_USER" --password="$IMPORT_PASS" --host="$IMPORT_HOST" --port="$IMPORT_PORT" "$IMPORT_NAME" > "./export.sql" 2>>$LOGFILE
+					if test -e "./export.sql" -a -r "./export.sql" -a -f "./export.sql"; then
+						mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "./export.sql" >>$LOGFILE 2>>$LOGFILE
+					fi
+					rm -f "./export.sql" >>$LOGFILE 2>>$LOGFILE
+				fi
+
+			fi
 
 			if [ "${RUNCOMMANDS[$DBINDEX]}" != "" ]
 			then
-				"${RUNCOMMANDS[$DBINDEX]}" >>$LOGFILE 2>>$LOGFILE
+				${RUNCOMMANDS[$DBINDEX]} >>$LOGFILE 2>>$LOGFILE
 			fi
 
 		fi

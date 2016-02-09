@@ -11,7 +11,7 @@
 
 #### The bash file
 The Bash script can be used to fire up a mysql server instance whose datadir is located
-in a tmpfs(in memory/RAM) filesystem mounted in the /tmp/mysqldtmpfsdatadir folder.
+in a tmpfs(in memory/RAM) filesystem mounted in the /tmp/tmpfs-mysql/datadir folder.
 
 The 'normal' mysql server is kept intact.
 
@@ -37,22 +37,28 @@ Test fixtures are disposable so we don't care about persistence.
 ### How to use it?
 
 ##### Compatability
-This script works with **Ubuntu** based Linux distributions and **MySQL server 5.6** versions.
-Future versions could address those limitations.
+This script currently works with **Ubuntu** based Linux distributions, maybe Debian also.
+
+Supported MySQL server versions are
+- 5.5
+- 5.6
+- 5.7
+
+Future versions will add support for other distributions.
 
 ##### Before we begin
-You should know that the script has two variables called <code>DBNAME</code> and <code>DUMPFILE</code> which can be used to automatically create a database and import an sql dump file in it.
-
 The default password set in the <code>PASSWORD</code> variable is 'drowssap'.
 
 The port for the tmpfs mysql instance, set in the <code>PORT</code> variable is 3344.
 
 
 ##### In order to use the script, just follow these steps
-- have a look at the script, check out the configuration options at the beginning of the file and adjust them for your needs
 - run the script
   <code>./tmpfsmysql.sh</code>
 - it'll ask for your password so it can <code>sudo</code>
+- on its first run, the script will create a configuration file "tmpfsmysql.cfg", take a look at it and adjust the configuration to your needs
+- to start the tmpfs-mysql server run the script again with the start option
+  <code>./tmpfsmysql.sh start</code>
 
 You can now connect to the tmpfs mysql instance using the following command (given that you haven't changed the settings in the script)
 
