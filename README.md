@@ -90,4 +90,4 @@ Just issue the following command <code>./tmpfsmysql.sh stop</code>
 - [ ] Automatic execution of the tmpfsmysql.sh should be implemented on vagrant up.
 - [x] The 'normal' mysql server instance being restarted should be fixed.
 - [ ] Detect the Linux distribution and use the relevant commands
-- [ ] Detect MySQL server version and use the specific parameters
+- [x] Detect MySQL server version and use the specific parameters
