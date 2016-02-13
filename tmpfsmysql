@@ -230,7 +230,7 @@ then
 	mysqladmin -u root --host=0.0.0.0 --port=$PORT password $PASSWORD >>$LOGFILE 2>>$LOGFILE
 	mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
 	mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
-
+	echo
 
 	for DBINDEX in "${!DBNAMES[@]}"
 	do
@@ -277,12 +277,14 @@ then
 
 			if [ "${RUNCOMMANDS[$DBINDEX]}" != "" ]
 			then
+				echo -ne "\E[1;29;40mExecuting the command configured for database $DBINDEX..."; tput sgr0; echo
 				${RUNCOMMANDS[$DBINDEX]} >>$LOGFILE 2>>$LOGFILE
 			fi
 
 		fi
 	done
 
+	echo
 	checkStartSuccess
 
 fi
