@@ -81,21 +81,21 @@ function killByPID {
 function initMySQLold {
 	echo $MESSAGE_INSTALLING_MYSQL
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
-	sleep 1
+	/bin/sleep 1
 	echo $MESSAGE_STARTING_MYSQL
 	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
 	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
-	sleep 1
+	/bin/sleep 1
 }
 
 function initMySQLnew {
 	echo $MESSAGE_INSTALLING_MYSQL
 	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
-	sleep 1
+	/bin/sleep 1
 	echo $MESSAGE_STARTING_MYSQL
 	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
 	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 >>$LOGFILE 2>>$LOGFILE &
-	sleep 1
+	/bin/sleep 1
 }
 
 function checkSQLdumpFile {
@@ -185,10 +185,10 @@ then
 	then
 		echo "Gracefully stopping the normal mysql server and killing any other mysqld process..."
 		sudo service mysql stop >>$LOGFILE 2>>$LOGFILE
-		sleep 1
+		/bin/sleep 1
 	fi
 	sudo killall mysqld >>$LOGFILE 2>>$LOGFILE
-	sleep 1
+	/bin/sleep 1
 	if [ "$MYSQLSERVICEPID" != "" ]
 	then
 		echo "Starting up the normal mysql server..."
@@ -224,7 +224,7 @@ then
   	fi
 
 	echo "Waiting for the new mysql server instance to fire up before we continue..."
-	sleep 1
+	/bin/sleep 1
 
 	echo "Set default password and allow access from any host..."
 	mysqladmin -u root --host=0.0.0.0 --port=$PORT password $PASSWORD >>$LOGFILE 2>>$LOGFILE
