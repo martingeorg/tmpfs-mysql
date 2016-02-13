@@ -3,17 +3,19 @@
 LOGFILE='./tmpfsmysql.log'
 LOGFILE_LINES=1000
 CONFIG_FILE='tmpfsmysql.cfg'
+MESSAGE_INSTALLING_MYSQL="Installing the new mysql database in the tmpfs directory..."
+MESSAGE_STARTING_MYSQL="Starting the tmpfs mysql server with specific parameters in order to use the tmpfs datadir..."
+
 
 echo -e "\nThe script needs sudo access in order to work"
 sudo date >>$LOGFILE # dummy command to cache the sudo credentials for the commands below
-echo ""
 
 function checkForMySQL {
-	MYSQLDINSTALLED=`sudo which mysqld`
+	MYSQLDINSTALLED=`sudo which mysqld 2>>$LOGFILE`
 	if [ "$MYSQLDINSTALLED" == "" ]
 	then
 		echo ""
-		echo "You don't seem to have MySQL server intalled! Please install it before running this script."
+		echo "You don't seem to have MySQL server installed! Please install it before running this script."
 		echo ""
 		exit 0
 	fi
@@ -76,9 +78,6 @@ function killByPID {
 	fi
 }
 
-MESSAGE_INSTALLING_MYSQL="Installing the new mysql database in the tmpfs directory..."
-MESSAGE_STARTING_MYSQL="Starting the tmpfs mysql server with specific parameters in order to use the tmpfs datadir..."
-
 function initMySQLold {
 	echo $MESSAGE_INSTALLING_MYSQL
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
@@ -132,6 +131,18 @@ then
 	echo -e "\n"
 	exit 0
 fi
+
+function checkStartSuccess {
+	PIDONSTART=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
+	if [ "$PIDONSTART" != "" ]
+	then
+		echo -ne "\E[1;29;42mThe tmpfs mysql server has started"; tput sgr0; echo -ne '\n'
+		echo "The password for the tmpfs-mysql server is '$PASSWORD' and the port is '$PORT'."
+	else
+		echo -ne "\E[1;29;41mThe tmpfs mysql server failed to start "; tput sgr0; echo -ne '\n'
+	fi
+	echo -ne "\n"
+}
 
 if [ "$1" == "client" ]
 then
@@ -272,10 +283,8 @@ then
 		fi
 	done
 
-	echo -ne '\E[1;29;42m'"tmpfs-mysql server has started"; tput sgr0
-	echo ""
-	echo "The password for the tmpfs-mysql server is '$PASSWORD' and the port is '$PORT'."
-	echo ""
+	checkStartSuccess
+
 fi
 
 if test -e "$LOGFILE" -a -r "$LOGFILE" -a -f "$LOGFILE"
