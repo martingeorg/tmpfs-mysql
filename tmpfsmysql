@@ -11,7 +11,7 @@ echo -e "\nThe script needs sudo access in order to work"
 sudo date >>$LOGFILE # dummy command to cache the sudo credentials for the commands below
 
 function checkForMySQL {
-	MYSQLDINSTALLED=`sudo which mysqld 2>>$LOGFILE`
+	local MYSQLDINSTALLED=`sudo which mysqld 2>>$LOGFILE`
 	if [ "$MYSQLDINSTALLED" == "" ]
 	then
 		echo ""
@@ -101,9 +101,9 @@ function initMySQLnew {
 function checkSQLdumpFile {
 	if [ "$1" == "" ]; then
 		echo -ne "\E[1;33;43mNo database index from the config was specified, assuming 0..."; tput sgr0; echo -ne "\n"
-		CHKDUMPINDEX=0
+		local CHKDUMPINDEX=0
 	else
-		CHKDUMPINDEX=$1
+		local CHKDUMPINDEX=$1
 	fi
 
 	if test -e "${DUMPFILES[$CHKDUMPINDEX]}" -a -r "${DUMPFILES[$CHKDUMPINDEX]}" -a -f "${DUMPFILES[$CHKDUMPINDEX]}"
@@ -133,7 +133,7 @@ then
 fi
 
 function checkStartSuccess {
-	PIDONSTART=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
+	local PIDONSTART=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
 	if [ "$PIDONSTART" != "" ]
 	then
 		echo -ne "\E[1;29;42mThe tmpfs mysql server has started"; tput sgr0; echo -ne '\n'
