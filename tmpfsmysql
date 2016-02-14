@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LOGFILE='./tmpfsmysql.log'
+LOGFILE='/opt/tmpfsmysqldir/tmpfsmysql.log'
 LOGFILE_LINES=1000
 CONFIG_FILE='tmpfsmysql.cfg'
 MESSAGE_INSTALLING_MYSQL="Installing the new mysql database in the tmpfs directory..."
@@ -46,6 +46,7 @@ DUMPFILES[0]=''\n\
 # import database, host:port:user:pass:dbname\n\
 IMPORTSFROM[0]='::::'\n\
 RUNCOMMANDS[0]=''\n" > "$CONFIG_FILE"
+	source "$CONFIG_FILE"
 	fi
 }
 LOAD_CONFIG
