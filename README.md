@@ -1,6 +1,6 @@
 # tmpfs-mysql
 
-### Speed up your unit tests using mysql server with tmpfs datadir :runner::zap:
+### Speed up your tests using MySQL server with tmpfs datadir :runner::zap:
 
 ![tmpfs mysql screenshot](http://martingeorg.github.io/tmpfsmysqlscreen.png)
 
