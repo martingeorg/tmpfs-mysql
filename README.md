@@ -93,6 +93,7 @@ Just issue the following command <code>./tmpfsmysql.sh stop</code>
 
 
 ### Looking forward :construction:
+- [ ] Add option in config file for custom parameters to the mysqld starting command.
 - [ ] Automatic execution of the tmpfsmysql.sh should be implemented on vagrant up.
 - [x] The 'normal' mysql server instance being restarted should be fixed.
 - [ ] Detect the Linux distribution and use the relevant commands
