@@ -30,7 +30,7 @@ database on every test method, that unloading/loading of fixtures becomes slower
 
 With mysql server having its datadir in memory, the fixtures loading/unloading is no longer a time waster.
 
-It is **IMPORTANT** to note that the tmpfs in **NOT A PERMANENT** storage, so don't use it for data which needs to persist.
+It is **IMPORTANT** to note that the tmpfs is **NOT A PERMANENT** storage, so don't use it for data which needs to persist.
 Test fixtures are disposable so we don't care about persistence.
 
 
