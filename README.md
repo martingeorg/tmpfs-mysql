@@ -10,7 +10,7 @@
 
 
 #### The bash file
-The Bash script can be used to fire up a mysql server instance whose datadir is located
+The Bash script can be used to fire up a MySQL/MariaDB server instance whose datadir is located
 in a tmpfs(in memory/RAM) filesystem mounted in the /tmp/tmpfs-mysql/datadir folder.
 
 The 'normal' mysql server is kept intact.
@@ -37,16 +37,20 @@ Test fixtures are disposable so we don't care about persistence.
 ### How to use it?
 
 ##### Compatability
-This script currently works with **Ubuntu** based Linux distributions, maybe Debian also.
+This script currently works with **Ubuntu** based Linux distributions and Debian.
 
 Supported MySQL server versions are
 - 5.5
 - 5.6
 - 5.7
 
+MariaDB is also supported. The code for MariaDB support was tested with version 10.0.27, but other versions should work as well.
+
 Future versions will add support for other distributions.
 
 ##### Before we begin
+The user for connecting to the tmpfs database is... wait for it... "tmpfs" :)
+
 The default password set in the <code>PASSWORD</code> variable is 'drowssap'.
 
 The port for the tmpfs mysql instance, set in the <code>PORT</code> variable is 3344.
@@ -62,7 +66,7 @@ The port for the tmpfs mysql instance, set in the <code>PORT</code> variable is 
 
 You can now connect to the tmpfs mysql instance using the following command (given that you haven't changed the settings in the script)
 
-<code>mysql -u root --host=0.0.0.0 --port=3344 --password=drowssap</code>
+<code>mysql -u tmpfs --host=0.0.0.0 --port=3344 --password=drowssap</code>
 
 Instead of 0.0.0.0 you can use your computer's LAN IP address, e.g. 192.168.x.x
 
@@ -79,7 +83,7 @@ The *ifconfig* command is just so you can see what network address has been give
 
 You can now connect to the tmpfs mysql instance using the following command (given that you haven't changed the settings in the script)
 
-<code>mysql -u root --host=192.168.33.10 --port=3344 --password=drowssap</code>
+<code>mysql -u tmpfs --host=192.168.33.10 --port=3344 --password=drowssap</code>
 
 The IP address 192.168.33.10 is the *host-only* address of the virtual machine, you can also use the *bridged* network address (the one you saw using *ifconfig*) to access the mysql server locally or from another machine in your network.
 
@@ -98,3 +102,4 @@ Just issue the following command <code>./tmpfsmysql.sh stop</code>
 - [x] The 'normal' mysql server instance being restarted should be fixed.
 - [ ] Detect the Linux distribution and use the relevant commands
 - [x] Detect MySQL server version and use the specific parameters
+- [x] MariaDB support
