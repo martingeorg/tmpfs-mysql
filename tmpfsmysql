@@ -121,7 +121,7 @@ function initMariaDB {
 	echo $MESSAGE_STARTING_MYSQL
 	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
 	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
-  /bin/sleep 1
+	/bin/sleep 1
 }
 
 function checkSQLdumpFile {
