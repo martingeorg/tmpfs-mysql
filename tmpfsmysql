@@ -6,6 +6,7 @@ CONFIG_FILE='tmpfsmysql.cfg'
 MESSAGE_INSTALLING_MYSQL="Installing the new mysql database in the tmpfs directory..."
 MESSAGE_STARTING_MYSQL="Starting the tmpfs mysql server with specific parameters in order to use the tmpfs datadir..."
 
+SOCKET_FILE='/tmp/tmpfs-mysql/tmpfs-mysqld.sock'
 
 echo -e "\nThe script needs sudo access in order to work"
 sudo date >>$LOGFILE # dummy command to cache the sudo credentials for the commands below
@@ -22,13 +23,20 @@ function checkForMySQL {
 }
 checkForMySQL
 
+MYSQL_VERSION_RAW=`sudo mysqld --version 2>>$LOGFILE`
+SERVER_MODE='MySQL'
+
+if [[ "$MYSQL_VERSION_RAW" == *"MariaDB"* ]]; then
+	SERVER_MODE='MariaDB'
+fi
+
 MYSQL_VERSION_XX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 }' | awk -F"-" '{ print $1 }'`
 MYSQL_VERSION_XXX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 $3 }' | awk -F"-" '{ print $1 }'`
 MYSQL_VERSION_Xxx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 }' | awk -F"-" '{ print $1 }'`
 MYSQL_VERSION_xXx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $2 }' | awk -F"-" '{ print $1 }'`
 MYSQL_VERSION_xxX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $3 }' | awk -F"-" '{ print $1 }'`
 
-echo -ne "\nYou are using MySQL version $MYSQL_VERSION_Xxx.$MYSQL_VERSION_xXx.$MYSQL_VERSION_xxX\n"
+echo -ne "\nYou are using $SERVER_MODE version $MYSQL_VERSION_Xxx.$MYSQL_VERSION_xXx.$MYSQL_VERSION_xxX\n"
 
 function LOAD_CONFIG
 {
@@ -91,8 +99,8 @@ function initMySQLold {
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 	echo $MESSAGE_STARTING_MYSQL
-	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
-	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
+	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
+	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
 	/bin/sleep 1
 }
 
@@ -101,9 +109,19 @@ function initMySQLnew {
 	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 	echo $MESSAGE_STARTING_MYSQL
-	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=/tmp/tmpfs-mysql/tmpfs-mysqld.sock --port=$PORT \
-	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
+	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
+	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
 	/bin/sleep 1
+}
+
+function initMariaDB {
+	echo $MESSAGE_INSTALLING_MYSQL
+	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
+	/bin/sleep 1
+	echo $MESSAGE_STARTING_MYSQL
+	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
+	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
+  /bin/sleep 1
 }
 
 function checkSQLdumpFile {
@@ -156,7 +174,7 @@ if [ "$1" == "client" ]
 then
 	echo -ne '\E[3;29;44m'"Logging into the tmpfs mysql server..."; tput sgr0
 	echo ""
-	mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD 2>>$LOGFILE
+	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD 2>>$LOGFILE
 	exit 0
 fi
 
@@ -164,7 +182,7 @@ if [ "$1" == "showdb" ]
 then
 	echo -ne '\E[3;29;44m'"Showing databases on the tmpfs mysql server..."; tput sgr0
 	echo ""
-	mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'show databases' 2>>$LOGFILE
+	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'show databases' 2>>$LOGFILE
 	echo ""
 	exit 0
 fi
@@ -219,32 +237,52 @@ then
 	sudo mkdir /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
 	sudo mount -t tmpfs -o size="$TMPFS_SIZE"M tmpfs /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
 
-	if [ "$MYSQL_VERSION_XX" == "55" -o "$MYSQL_VERSION_XX" == "56" ]; then
-		initMySQLold
-  	fi
+	sudo chown mysql:mysql /tmp/tmpfs-mysql
+	sudo -u mysql mkdir /tmp/tmpfs-mysql/datadir
 
-	if [ "$MYSQL_VERSION_XX" == "57" -a "${MYSQL_VERSION_xxX}" -lt 6 ]; then
-		initMySQLold
+	if [ "$SERVER_MODE" == 'MariaDB' ]; then
+		initMariaDB
+	else
+		if [ "$MYSQL_VERSION_XX" == "55" -o "$MYSQL_VERSION_XX" == "56" ]; then
+			initMySQLold
+		fi
+
+		if [ "$MYSQL_VERSION_XX" == "57" -a "${MYSQL_VERSION_xxX}" -lt 6 ]; then
+			initMySQLold
+		fi
+
+		if [ "$MYSQL_VERSION_Xxx" -ge "5" -a "${MYSQL_VERSION_xXx}" -ge 7 -a "${MYSQL_VERSION_xxX}" -ge 6 ]; then
+			initMySQLnew
+		fi
 	fi
-
-	if [ "$MYSQL_VERSION_Xxx" -ge "5" -a "${MYSQL_VERSION_xXx}" -ge 7 -a "${MYSQL_VERSION_xxX}" -ge 6 ]; then
-		initMySQLnew
-  	fi
 
 	echo "Waiting for the new mysql server instance to fire up before we continue..."
 	/bin/sleep 1
 
 	echo "Set default password and allow access from any host..."
-	mysqladmin -u root --host=0.0.0.0 --port=$PORT password $PASSWORD >>$LOGFILE 2>>$LOGFILE
-	mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-	mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
+
+	if [ "$SERVER_MODE" == 'MariaDB' ];
+	then
+		sudo mysqladmin -u root --host=localhost --port=$PORT --socket=$SOCKET_FILE password $PASSWORD >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';"
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE -e "CREATE USER 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';"
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE -e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';"
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE -e 'FLUSH PRIVILEGES;'
+	else
+		mysqladmin -u root --host=0.0.0.0 --port=$PORT password $PASSWORD >>$LOGFILE 2>>$LOGFILE
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "CREATE USER 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';"
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';"
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
+	fi
+
 	echo
 
 	for DBINDEX in "${!DBNAMES[@]}"
 	do
 		if [ "${DBNAMES[$DBINDEX]}" != "" ]
 		then
-			mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "create database ${DBNAMES[$DBINDEX]};" >>$LOGFILE 2>>$LOGFILE
+			mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "create database ${DBNAMES[$DBINDEX]};" >>$LOGFILE 2>>$LOGFILE
 
 			if [ "${DUMPFILES[$DBINDEX]}" != "" ]
 			then
@@ -253,7 +291,7 @@ then
 					echo -ne '\E[1;29;42m';
 					echo -n "Importing sql dump file"; tput sgr0
 					echo ""
-					mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "${DUMPFILES[$DBINDEX]}" >>$LOGFILE 2>>$LOGFILE
+					mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "${DUMPFILES[$DBINDEX]}" >>$LOGFILE 2>>$LOGFILE
 				else
 					echo -ne '\E[1;29;41m';
 					echo -n "Couldn't find or read sql dump file, please check the path and try again"; tput sgr0
@@ -276,7 +314,7 @@ then
 					echo -ne "\E[1;33;45mImporting $IMPORT_NAME database from $IMPORT_HOST"; tput sgr0; echo -ne "\n"
 					mysqldump -u "$IMPORT_USER" --password="$IMPORT_PASS" --host="$IMPORT_HOST" --port="$IMPORT_PORT" "$IMPORT_NAME" > "./export.sql" 2>>$LOGFILE
 					if test -e "./export.sql" -a -r "./export.sql" -a -f "./export.sql"; then
-						mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "./export.sql" >>$LOGFILE 2>>$LOGFILE
+						mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "./export.sql" >>$LOGFILE 2>>$LOGFILE
 					fi
 					rm -f "./export.sql" >>$LOGFILE 2>>$LOGFILE
 				fi
