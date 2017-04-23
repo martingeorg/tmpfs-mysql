@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#sudo systemctl daemon-reload
+#sudo systemctl restart tmpfsmysql.service
+
 LOGFILE='./tmpfsmysql.log'
 LOGFILE_LINES=1000
 CONFIG_FILE='tmpfsmysql.cfg'
@@ -264,12 +267,24 @@ then
 	if [ "$SERVER_MODE" == 'MariaDB' ];
 	then
 		sudo mysqladmin -u root --host=localhost --port=$PORT --socket=$SOCKET_FILE password $PASSWORD >>$LOGFILE 2>>$LOGFILE
+
 		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
 		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
 		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'0.0.0.0' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
 		-e "CREATE USER 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+
 		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
 		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'localhost' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'0.0.0.0' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+
 		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
 		-e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
 	else
