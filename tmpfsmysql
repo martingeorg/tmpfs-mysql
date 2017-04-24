@@ -3,6 +3,9 @@
 #sudo systemctl daemon-reload
 #sudo systemctl restart tmpfsmysql.service
 
+#/etc/init/tmpfsmysql.conf
+#sudo service tmpfsmysql start
+
 LOGFILE='./tmpfsmysql.log'
 LOGFILE_LINES=1000
 CONFIG_FILE='tmpfsmysql.cfg'
