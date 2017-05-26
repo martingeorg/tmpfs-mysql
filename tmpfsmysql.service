@@ -1,0 +1,10 @@
+[Unit]
+After=network.target
+
+[Service]
+ExecStart=/home/ubuntu/tmpfs-mysql/systemd-service-start.sh
+Type=Simple
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
