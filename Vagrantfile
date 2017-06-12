@@ -12,7 +12,7 @@ Vagrant.configure(2) do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://atlas.hashicorp.com/search.
-  config.vm.box = "ubuntu/wily64"
+  config.vm.box = "ubuntu/zesty64"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -68,8 +68,8 @@ Vagrant.configure(2) do |config|
     sudo apt-get update
     sudo apt-get purge -y chef puppet
     sudo apt-get install debconf-utils -y
-	sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
-	sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
+    sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
+    sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
     sudo apt-get install -y mysql-server htop
   SHELL
 end
