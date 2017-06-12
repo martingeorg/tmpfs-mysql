@@ -51,13 +51,16 @@ function LOAD_CONFIG
 		source "$CONFIG_FILE"
 	else
 		touch "$CONFIG_FILE"
+		echo -ne "\n\E[1;29;45mLooks like this is the first run on the script, we'll now create a config file $CONFIG_FILE in the current folder."
+		tput sgr0
+		echo -e "\n"
 		printf "# tmpfs filesystem size in MB, values below 256 are not recommended\n\
 TMPFS_SIZE=256\n\
 PORT=3344\n\
 PASSWORD='drowssap'\n\
 
 # additional parameters for the mysqld command
-# sql-mode could be used to make MySQL 5.7 behave like MySQL 5.6
+# sql-mode could be used to make MySQL 5.7 behave more like MySQL 5.6
 # see more here http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_sql_mode
 # --sql-mode=NO_ENGINE_SUBSTITUTION
 MYSQLDPARAMS=''
