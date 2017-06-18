@@ -120,29 +120,41 @@ function killByPID {
 }
 
 function initMySQLold {
-	echo $MESSAGE_INSTALLING_MYSQL
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
-	/bin/sleep 1
-	echo $MESSAGE_STARTING_MYSQL
-	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
-	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
 	/bin/sleep 1
 }
 
 function initMySQLnew {
-	echo $MESSAGE_INSTALLING_MYSQL
 	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
-	/bin/sleep 1
-	echo $MESSAGE_STARTING_MYSQL
-	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
-	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
 	/bin/sleep 1
 }
 
 function initMariaDB {
-	echo $MESSAGE_INSTALLING_MYSQL
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
+}
+
+function dbServerInstaller {
+	echo $MESSAGE_INSTALLING_MYSQL
+
+	if [ "$SERVER_MODE" == 'MariaDB' ]; then
+		initMariaDB
+	else
+		if [ "$MYSQL_VERSION_XX" == "55" -o "$MYSQL_VERSION_XX" == "56" ]; then
+			initMySQLold
+		fi
+
+		if [ "$MYSQL_VERSION_XX" == "57" -a "${MYSQL_VERSION_xxX}" -lt 6 ]; then
+			initMySQLold
+		fi
+
+		if [ "$MYSQL_VERSION_Xxx" -ge "5" -a "${MYSQL_VERSION_xXx}" -ge 7 -a "${MYSQL_VERSION_xxX}" -ge 6 ]; then
+			initMySQLnew
+		fi
+	fi
+}
+
+function dbServerStarter {
 	echo $MESSAGE_STARTING_MYSQL
 	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
 	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
@@ -197,9 +209,17 @@ function checkStartSuccess {
 	echo -ne "\n"
 }
 
+function nicelyStopTmpfsServer {
+	if [ "$PID" != "" ]; then
+		echo "tmpfs-mysql PID is $PID"
+		sudo kill -s 15 "$PID"
+		echo "tmpfs-mysql server has been put to sleep"
+	fi
+}
+
 if [ "$1" == "client" ]
 then
-	echo -ne '\E[3;29;44m'"Logging into the tmpfs mysql server..."; tput sgr0
+	echo -ne '\n\E[3;29;44m'"Logging into the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD 2>>$LOGFILE
 	exit 0
@@ -207,9 +227,27 @@ fi
 
 if [ "$1" == "showdb" ]
 then
-	echo -ne '\E[3;29;44m'"Showing databases on the tmpfs mysql server..."; tput sgr0
+	echo -ne '\n\E[3;29;44m'"Showing databases on the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'show databases' 2>>$LOGFILE
+	echo ""
+	exit 0
+fi
+
+if [ "$1" == "createdb" ]
+then
+	echo -ne '\n\E[3;29;44m'"Creating database $2 on the tmpfs mysql server..."; tput sgr0
+	echo ""
+	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "create database if not exists $2" 2>>$LOGFILE
+	echo ""
+	exit 0
+fi
+
+if [ "$1" == "dropdb" ]
+then
+	echo -ne '\n\E[3;29;44m'"Dropping database $2 from the tmpfs mysql server..."; tput sgr0
+	echo ""
+	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "drop database if exists $2" 2>>$LOGFILE
 	echo ""
 	exit 0
 fi
@@ -250,6 +288,56 @@ then
 	exit 0
 fi
 
+if [ "$1" == "store" ]; then
+	echo -e "Storing the tmpfs-mysql server datadir into the persist folder..."
+
+	nicelyStopTmpfsServer
+
+	persistFolderDatadir=`pwd`/persist/datadir
+	echo -e "We are about to delete the $persistFolderDatadir folder";
+	sudo rm -rf "$persistFolderDatadir"
+	sudo cp -pr /tmp/tmpfs-mysql/datadir "$persistFolderDatadir"
+
+	dbServerStarter
+	echo -e "...completed persisting the tmpfs-mysql datadir."
+fi
+
+# need to handle cases where load is called before tmpfs-mysql is started and we need to create the tmpfs folder
+if [ "$1" == "load" ]; then
+	persistFolderDatadir=`pwd`/persist/datadir
+
+	if ! ( test -e "$persistFolderDatadir" -a -r "$persistFolderDatadir" -a -d "$persistFolderDatadir" )
+	then
+		echo -e "No datadir is present in the persist folder, exiting with status 1!"
+		exit 1
+	fi
+
+	echo -e "Loading the tmpfs-mysql server datadir from the persist folder..."
+
+	nicelyStopTmpfsServer
+
+	echo -e "We are about to load the $persistFolderDatadir folder as tmpfs-mysql datadir";
+
+	sudo rm -rf /tmp/tmpfs-mysql/datadir
+	# figure out a better way than sleep, to wait for rm to complete and have the filesystem stats updated
+	sleep 2
+	sudo cp -pr "$persistFolderDatadir" /tmp/tmpfs-mysql/datadir
+
+	dbServerStarter
+
+	echo -e "...completed loading tmpfs-mysql datadir from the persist folder."
+fi
+
+if [ "$1" == "store-clear" ]; then
+	echo -e "Clearing the persist folder..."
+
+	persistFolderDatadir=`pwd`/persist/datadir
+	echo -e "We are about to delete the $persistFolderDatadir folder";
+
+	sudo rm -rf "$persistFolderDatadir"
+
+	echo -e "...completed clearing the persist folder."
+fi
 
 if [ "$1" == "start" ] || [ "$1" == "restart" ]
 then
@@ -267,21 +355,8 @@ then
 	sudo chown mysql:mysql /tmp/tmpfs-mysql
 	sudo -u mysql mkdir /tmp/tmpfs-mysql/datadir
 
-	if [ "$SERVER_MODE" == 'MariaDB' ]; then
-		initMariaDB
-	else
-		if [ "$MYSQL_VERSION_XX" == "55" -o "$MYSQL_VERSION_XX" == "56" ]; then
-			initMySQLold
-		fi
-
-		if [ "$MYSQL_VERSION_XX" == "57" -a "${MYSQL_VERSION_xxX}" -lt 6 ]; then
-			initMySQLold
-		fi
-
-		if [ "$MYSQL_VERSION_Xxx" -ge "5" -a "${MYSQL_VERSION_xXx}" -ge 7 -a "${MYSQL_VERSION_xxX}" -ge 6 ]; then
-			initMySQLnew
-		fi
-	fi
+	dbServerInstaller
+	dbServerStarter
 
 	echo "Waiting for the new mysql server instance to fire up before we continue..."
 	/bin/sleep 1
@@ -383,7 +458,11 @@ fi
 
 if test -e "$LOGFILE" -a -r "$LOGFILE" -a -f "$LOGFILE"
 then
-	cp "$LOGFILE" "$LOGFILE".bak
-	tail -n $LOGFILE_LINES "$LOGFILE".bak > "$LOGFILE"
-	rm -f "$LOGFILE".bak
+	logfileLines=`wc -l $LOGFILE | awk '{print $1}'`
+
+	if [ "${logfileLines}" -gt 1000 ]; then
+		cp "$LOGFILE" "$LOGFILE".bak
+		tail -n $LOGFILE_LINES "$LOGFILE".bak > "$LOGFILE"
+		rm -f "$LOGFILE".bak
+	fi
 fi
