@@ -293,7 +293,7 @@ if [ "$1" == "store" ]; then
 
 	nicelyStopTmpfsServer
 
-	sleep 2
+	sleep 4
 
 	persistFolderDatadir=`pwd`/persist/datadir
 	echo -e "We are about to delete the $persistFolderDatadir folder";
