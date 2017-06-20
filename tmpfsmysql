@@ -60,9 +60,8 @@ function LOAD_CONFIG
 	else
 		touch "$CONFIG_FILE"
 
-		echo -ne "\n\E[1;29;45mLooks like this is the first run on the script, we'll now create a config file $CONFIG_FILE in the current folder."
-		tput sgr0
-		echo
+		echo -e "\n\E[1;29;45mLooks like this is the first run on the script, we'll now create\E[0m"
+		echo -e "\E[1;29;45mconfig file $CONFIG_FILE in the current folder.\E[0m"
 
 		printf "# tmpfs filesystem size in MB, values below 256 are not recommended\n\
 TMPFS_SIZE=256\n\
@@ -97,25 +96,25 @@ then
 	echo -e "\n"
 	echo -ne " \E[1;32;49mAvailable command options are:\E[0m"
 	echo -e "\n"
-	echo " start|restart   - Starts the tmpfs MySQL instance. This will kill any already started tmpfs mysql server."
-	echo " stop            - Stop the tmpfs mysql server instance."
-	echo " status          - Check whether the tmpfs mysql server is running."
-	echo "                   Script exit status will be 0 if the tmpfs mysql server is running, 1 if it's not."
-	echo " kill            - Kill any other instances of the mysqld daemon besides the normal MySQL server."
-	echo -ne "                   \E[1;31;49mIt will however gracefully restart the normal MySQL server!"; tput sgr0
+	echo " start|restart - Starts the tmpfs MySQL instance. This will kill any already started tmpfs mysql server."
+	echo " stop          - Stop the tmpfs mysql server instance."
+	echo " status        - Check whether the tmpfs mysql server is running."
+	echo "                 Script exit status will be 0 if the tmpfs mysql server is running, 1 if it's not."
+	echo " kill          - Kill any other instances of the mysqld daemon besides the normal MySQL server."
+	echo -ne "                 \E[1;31;49mIt will however gracefully restart the normal MySQL server!"; tput sgr0
 	echo -e "\n"
-	echo " showdb          - Show a list of the databases on the tmpfs mysql server."
-	echo -ne " createdb        - Create database with the given name. Example \E[1;36;44m./tmpfsmysql createdb testdb"; tput sgr0
+	echo " showdb        - Show a list of the databases on the tmpfs mysql server."
+	echo -ne " createdb      - Create database with the given name. Example \E[1;36;44m./tmpfsmysql createdb testdb"; tput sgr0
 	echo -e ""
-	echo -ne " dropdb          - Drop database with the given name. Example \E[1;36;44m./tmpfsmysql dropdb testdb"; tput sgr0
+	echo -ne " dropdb        - Drop database with the given name. Example \E[1;36;44m./tmpfsmysql dropdb testdb"; tput sgr0
 	echo -e "\n"
-	echo " store           - Persist the current data from the tmpfs-mysql server into the persist folder."
-	echo " store-clear     - Clears the data stored in the persist folder."
-	echo " load            - Load the persisted data from the persist folder into the tmpfs-mysql server data dir."
+	echo " store         - Persist the current data from the tmpfs-mysql server into the persist folder."
+	echo " store-clear   - Clears the data stored in the persist folder."
+	echo " load          - Load the persisted data from the persist folder into the tmpfs-mysql server data dir."
 	echo
-	echo " usage           - Shows how much of the memory, alocated to the tmpfs storage is in use."
-	echo " client          - You will be connected to the tmpfs mysql server using the mysql client."
-	echo " checkdump       - Check if the dump file configured in DUMPFILE exists and is readable."
+	echo " usage         - Shows how much of the memory, alocated to the tmpfs storage is in use."
+	echo " client        - You will be connected to the tmpfs mysql server using the mysql client."
+	echo " checkdump     - Check if the dump file configured in DUMPFILE exists and is readable."
 	echo -e ""
 	exit 0
 fi
