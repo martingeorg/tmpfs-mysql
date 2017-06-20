@@ -95,27 +95,45 @@ then
 	tput sgr0
 
 	echo -e "\n"
-	echo "Available command options are:"
-	echo " start | restart - Starts the tmpfs MySQL instance. This will kill any already started tmpfs mysql server."
+	echo -ne " \E[1;32;49mAvailable command options are:\E[0m"
+	echo -e "\n"
+	echo " start|restart   - Starts the tmpfs MySQL instance. This will kill any already started tmpfs mysql server."
 	echo " stop            - Stop the tmpfs mysql server instance."
-	echo " kill            - Kill any other instances of the mysqld daemon besides the normal MySQL server."
-	echo "                   It will however gracefully restart the normal MySQL server!"
 	echo " status          - Check whether the tmpfs mysql server is running."
 	echo "                   Script exit status will be 0 if the tmpfs mysql server is running, 1 if it's not."
-	echo " client          - You will be connected to the tmpfs mysql server using the mysql client."
+	echo " kill            - Kill any other instances of the mysqld daemon besides the normal MySQL server."
+	echo -ne "                   \E[1;31;49mIt will however gracefully restart the normal MySQL server!"; tput sgr0
+	echo -e "\n"
 	echo " showdb          - Show a list of the databases on the tmpfs mysql server."
+	echo -ne " createdb        - Create database with the given name. Example \E[1;36;44m./tmpfsmysql createdb testdb"; tput sgr0
+	echo -e ""
+	echo -ne " dropdb          - Drop database with the given name. Example \E[1;36;44m./tmpfsmysql dropdb testdb"; tput sgr0
+	echo -e "\n"
+	echo " store           - Persist the current data from the tmpfs-mysql server into the persist folder."
+	echo " store-clear     - Clears the data stored in the persist folder."
+	echo " load            - Load the persisted data from the persist folder into the tmpfs-mysql server data dir."
+	echo
+	echo " usage           - Shows how much of the memory, alocated to the tmpfs storage is in use."
+	echo " client          - You will be connected to the tmpfs mysql server using the mysql client."
 	echo " checkdump       - Check if the dump file configured in DUMPFILE exists and is readable."
-	echo -ne "\n"
+	echo -e ""
 	exit 0
 fi
 
 PID=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
 
+function nicelyStopTmpfsServer {
+	if [ "$PID" != "" ]; then
+		echo "tmpfs-mysql PID is $PID"
+		sudo kill -s 15 "$PID" >>$LOGFILE 2>>$LOGFILE
+		echo "tmpfs-mysql server has been put to sleep"
+	fi
+}
+
 function killByPID {
-	if [ "$PID" != "" ]
-	then
+	if [ "$PID" != "" ]; then
 		echo "Terminating tmpfs mysqld process with id $PID..."
-		sudo kill -s term $PID >>$LOGFILE 2>>$LOGFILE
+		sudo kill -s 9 $PID >>$LOGFILE 2>>$LOGFILE
 	fi
 }
 
@@ -209,14 +227,6 @@ function checkStartSuccess {
 	echo -ne "\n"
 }
 
-function nicelyStopTmpfsServer {
-	if [ "$PID" != "" ]; then
-		echo "tmpfs-mysql PID is $PID"
-		sudo kill -s 15 "$PID"
-		echo "tmpfs-mysql server has been put to sleep"
-	fi
-}
-
 if [ "$1" == "client" ]
 then
 	echo -ne '\n\E[3;29;44m'"Logging into the tmpfs mysql server..."; tput sgr0
@@ -261,7 +271,7 @@ fi
 
 if [ "$1" == "stop" ]
 then
-	killByPID
+	nicelyStopTmpfsServer
 	echo "The tmpfs mysql server instance has been stopped."
 	echo ""
 	exit 0
@@ -339,6 +349,10 @@ if [ "$1" == "store-clear" ]; then
 	sudo rm -rf "$persistFolderDatadir"
 
 	echo -e "...completed clearing the persist folder."
+fi
+
+if [ "$1" == "usage" ]; then
+	usedMB=`sudo du -sm /tmp/tmpfs-mysql | awk '{ print $1 }'`; echo -e "\n\E[1;39;46m Memory used \E[0m\E[1;39;44m ${usedMB} of ${TMPFS_SIZE} MB \E[0m\n"
 fi
 
 if [ "$1" == "start" ] || [ "$1" == "restart" ]
