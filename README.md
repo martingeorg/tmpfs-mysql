@@ -2,7 +2,7 @@
 
 ### Speed up your tests using MySQL/MariaDB server with tmpfs datadir :runner::zap:
 
-![tmpfs mysql screenshot](http://martingeorg.github.io/tmpfsmysqlscreen.png)
+![tmpfs mysql screenshot](http://martingeorg.github.io/tmpfsmysqlscreen-06-2017.png)
 
 ### This repository has two key parts
 - Bash script instantiating a mysql server with datadir set to a tmpfs mounted filesystem
