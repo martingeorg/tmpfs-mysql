@@ -64,12 +64,15 @@ Vagrant.configure(2) do |config|
   # Enable provisioning with a shell script. Additional provisioners such as
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
-  config.vm.provision "shell", inline: <<-SHELL
-    sudo apt-get update
-    sudo apt-get purge -y chef puppet
-    sudo apt-get install debconf-utils -y
-    sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
-    sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
-    sudo apt-get install -y mysql-server htop
+  config.vm.provision "shell", env: {DEBIAN_FRONTEND: 'noninteractive'}, inline: <<-SHELL
+    sudo -E apt-get update
+    sudo -E apt-get purge -y chef puppet
+    sudo -E apt-get install -q -y git htop mysql-server
+    sudo -E mysqladmin -u root password root >>/dev/null 2>>/dev/null
+    sudo -E ln -s /etc/apparmor.d/usr.sbin.mysqld /etc/apparmor.d/disable/
+    sudo -E apparmor_parser -R /etc/apparmor.d/usr.sbin.mysqld
+    git clone https://github.com/martingeorg/tmpfs-mysql.git >>/dev/null 2>>/dev/null
+    echo 'Cloned tmpfs-mysql in the home folder.';
+    echo 'You can now do "vagrant ssh" and then "cd tmpfs-mysql" and "sudo ./tmpfsmysql" to see available options.';
   SHELL
 end
