@@ -75,7 +75,7 @@ Instead of 0.0.0.0 you can use your computer's LAN IP address, e.g. 192.168.x.x
 - <code>vagrant up</code>
 - <code>vagrant ssh</code>
 - <code>cd /vagrant</code>
-- <code>./tmpfsmysql.sh</code>
+- <code>sudo ./tmpfsmysql.sh</code>
 - <code>ifconfig</code>
 - <code>exit</code>
 
