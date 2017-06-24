@@ -33,22 +33,26 @@ function createConfig {
 
 	touch "$CONFIG_FILE"
 
-	printf "# tmpfs filesystem size in MB, values below 256 are not recommended\n\
-TMPFS_SIZE=256\n\
-PORT=3344\n\
-PASSWORD='drowssap'\n\
+	(
+	cat <<-CONFIGCONTENT
+	# tmpfs filesystem size in MB, values below 256 are not recommended
+	TMPFS_SIZE=256
+	PORT=3344
+	PASSWORD='drowssap'
 
-# additional parameters for the mysqld command
-# sql-mode could be used to make MySQL 5.7 behave more like MySQL 5.6
-# see more here http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_sql_mode
-# --sql-mode=NO_ENGINE_SUBSTITUTION
-MYSQLDPARAMS=''
+	# additional parameters for the mysqld command
+	# sql-mode could be used to make MySQL 5.7 behave more like MySQL 5.6
+	# see more here http://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_sql_mode
+	# --sql-mode=NO_ENGINE_SUBSTITUTION
+	MYSQLDPARAMS=''
 
-DBNAMES[0]=''\n\
-DUMPFILES[0]=''\n\
-# import database, host:port:user:pass:dbname\n\
-IMPORTSFROM[0]='::::'\n\
-RUNCOMMANDS[0]=''\n" > "$CONFIG_FILE"
+	DBNAMES[0]=''
+	DUMPFILES[0]=''
+	# import database, host:port:user:pass:dbname
+	IMPORTSFROM[0]='::::'
+	RUNCOMMANDS[0]=''
+	CONFIGCONTENT
+	) > $CONFIG_FILE
 }
 
 function populatePID {
