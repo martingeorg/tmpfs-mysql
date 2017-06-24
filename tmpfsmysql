@@ -195,17 +195,30 @@ function killByPID {
 	fi
 }
 
-function initMySQLold {
+function prepareTmpfsFilesystem {
+	echo "Delete old temporary file system in RAM..."
+	sudo umount -l /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
+	sudo rm -rf /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
+
+	echo "Creating temporary file system in RAM..."
+	sudo mkdir /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
+	sudo mount -t tmpfs -o size="$TMPFS_SIZE"M tmpfs /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
+
+	sudo chown mysql:mysql /tmp/tmpfs-mysql
+	sudo -u mysql mkdir /tmp/tmpfs-mysql/datadir
+}
+
+function installBaseDatabaseMySQLold {
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 }
 
-function initMySQLnew {
+function installBaseDatabaseMySQLnew {
 	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 }
 
-function initMariaDB {
+function installBaseDatabaseinitMariaDB {
 	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 }
@@ -214,18 +227,18 @@ function dbServerInstaller {
 	echo $MESSAGE_INSTALLING_MYSQL
 
 	if [ "$SERVER_MODE" == 'MariaDB' ]; then
-		initMariaDB
+		installBaseDatabaseinitMariaDB
 	else
 		if [ "$MYSQL_VERSION_XX" == "55" -o "$MYSQL_VERSION_XX" == "56" ]; then
-			initMySQLold
+			installBaseDatabaseMySQLold
 		fi
 
 		if [ "$MYSQL_VERSION_XX" == "57" -a "${MYSQL_VERSION_xxX}" -lt 6 ]; then
-			initMySQLold
+			installBaseDatabaseMySQLold
 		fi
 
 		if [ "$MYSQL_VERSION_Xxx" -ge "5" -a "${MYSQL_VERSION_xXx}" -ge 7 -a "${MYSQL_VERSION_xxX}" -ge 6 ]; then
-			initMySQLnew
+			installBaseDatabaseMySQLnew
 		fi
 	fi
 }
@@ -235,6 +248,101 @@ function dbServerStarter {
 	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
 	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
 	/bin/sleep 1
+}
+
+function fixUserAccessAndPrivileges {
+	echo "Set default password and allow access from any host..."
+
+	if [ "$SERVER_MODE" == 'MariaDB' ];
+	then
+		sudo mysqladmin -u root --host=localhost --port=$PORT --socket=$SOCKET_FILE password $PASSWORD >>$LOGFILE 2>>$LOGFILE
+
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'0.0.0.0' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "CREATE USER 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'localhost' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'0.0.0.0' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+
+		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
+		-e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
+	else
+		mysqladmin -u root --host=0.0.0.0 --port=$PORT password $PASSWORD >>$LOGFILE 2>>$LOGFILE
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
+		-e "CREATE USER 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
+		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
+		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
+		-e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
+	fi
+
+	echo
+}
+
+function performAfterStartUserConfigTasks {
+	for DBINDEX in "${!DBNAMES[@]}"
+	do
+		if [ "${DBNAMES[$DBINDEX]}" != "" ]
+		then
+			mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "create database ${DBNAMES[$DBINDEX]};" >>$LOGFILE 2>>$LOGFILE
+
+			if [ "${DUMPFILES[$DBINDEX]}" != "" ]
+			then
+				if test -e "${DUMPFILES[$DBINDEX]}" -a -r "${DUMPFILES[$DBINDEX]}" -a -f "${DUMPFILES[$DBINDEX]}"
+				then
+					echo -ne '\E[1;29;42m';
+					echo -n "Importing sql dump file"; tput sgr0
+					echo ""
+					mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "${DUMPFILES[$DBINDEX]}" >>$LOGFILE 2>>$LOGFILE
+				else
+					echo -ne '\E[1;29;41m';
+					echo -n "Couldn't find or read sql dump file, please check the path and try again"; tput sgr0
+					echo ""
+				fi
+			fi
+
+			if [ "${IMPORTSFROM[$DBINDEX]}" != "::::" -a "${IMPORTSFROM[$DBINDEX]}" != "" ]; then
+				IMPORT_HOST=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $1 }' `
+				IMPORT_PORT=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $2 }' `
+				IMPORT_USER=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $3 }' `
+				IMPORT_PASS=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $4 }' `
+				IMPORT_NAME=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $5 }' `
+
+				if [ "$IMPORT_HOST" == "" ]; then IMPORT_HOST="127.0.0.1"; fi
+				if [ "$IMPORT_PORT" == "" ]; then IMPORT_PORT="3306"; fi
+				if [ "$IMPORT_USER" == "" ]; then IMPORT_USER="root"; fi
+
+				if [ "$IMPORT_PASS" != "" -a "$IMPORT_NAME" != "" ]; then
+					echo -ne "\E[1;33;45mImporting $IMPORT_NAME database from $IMPORT_HOST"; tput sgr0; echo -ne "\n"
+					mysqldump -u "$IMPORT_USER" --password="$IMPORT_PASS" --host="$IMPORT_HOST" --port="$IMPORT_PORT" "$IMPORT_NAME" > "./export.sql" 2>>$LOGFILE
+					if test -e "./export.sql" -a -r "./export.sql" -a -f "./export.sql"; then
+						mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "./export.sql" >>$LOGFILE 2>>$LOGFILE
+					fi
+					rm -f "./export.sql" >>$LOGFILE 2>>$LOGFILE
+				fi
+
+			fi
+
+			if [ "${RUNCOMMANDS[$DBINDEX]}" != "" ]
+			then
+				echo -ne "\E[1;29;40mExecuting the command configured for database $DBINDEX..."; tput sgr0; echo
+				${RUNCOMMANDS[$DBINDEX]} >>$LOGFILE 2>>$LOGFILE
+			fi
+
+		fi
+	done
 }
 
 function checkStartSuccess {
@@ -377,115 +485,15 @@ function menuActionUsage {
 
 function menuActionStartRestart {
 	killByPID
-
-	echo "Delete old temporary file system in RAM..."
-	sudo umount -l /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-
-	sudo rm -rf /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-
-	echo "Creating temporary file system in RAM..."
-	sudo mkdir /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-	sudo mount -t tmpfs -o size="$TMPFS_SIZE"M tmpfs /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-
-	sudo chown mysql:mysql /tmp/tmpfs-mysql
-	sudo -u mysql mkdir /tmp/tmpfs-mysql/datadir
-
+	prepareTmpfsFilesystem
 	dbServerInstaller
 	dbServerStarter
 
 	echo "Waiting for the new mysql server instance to fire up before we continue..."
 	/bin/sleep 1
 
-	echo "Set default password and allow access from any host..."
-
-	if [ "$SERVER_MODE" == 'MariaDB' ];
-	then
-		sudo mysqladmin -u root --host=localhost --port=$PORT --socket=$SOCKET_FILE password $PASSWORD >>$LOGFILE 2>>$LOGFILE
-
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'0.0.0.0' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e "CREATE USER 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'localhost' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'0.0.0.0' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-
-		sudo mysql -u root --host=localhost --port=$PORT --password=$PASSWORD --socket=$SOCKET_FILE \
-		-e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
-	else
-		mysqladmin -u root --host=0.0.0.0 --port=$PORT password $PASSWORD >>$LOGFILE 2>>$LOGFILE
-		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
-		-e "CREATE USER 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
-		-e "GRANT ALL PRIVILEGES ON *.* TO 'tmpfs'@'%' IDENTIFIED BY '$PASSWORD';" >>$LOGFILE 2>>$LOGFILE
-		mysql -u root --host=0.0.0.0 --port=$PORT --password=$PASSWORD \
-		-e 'FLUSH PRIVILEGES;' >>$LOGFILE 2>>$LOGFILE
-	fi
-
-	echo
-
-	for DBINDEX in "${!DBNAMES[@]}"
-	do
-		if [ "${DBNAMES[$DBINDEX]}" != "" ]
-		then
-			mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "create database ${DBNAMES[$DBINDEX]};" >>$LOGFILE 2>>$LOGFILE
-
-			if [ "${DUMPFILES[$DBINDEX]}" != "" ]
-			then
-				if test -e "${DUMPFILES[$DBINDEX]}" -a -r "${DUMPFILES[$DBINDEX]}" -a -f "${DUMPFILES[$DBINDEX]}"
-				then
-					echo -ne '\E[1;29;42m';
-					echo -n "Importing sql dump file"; tput sgr0
-					echo ""
-					mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "${DUMPFILES[$DBINDEX]}" >>$LOGFILE 2>>$LOGFILE
-				else
-					echo -ne '\E[1;29;41m';
-					echo -n "Couldn't find or read sql dump file, please check the path and try again"; tput sgr0
-					echo ""
-				fi
-			fi
-
-			if [ "${IMPORTSFROM[$DBINDEX]}" != "::::" -a "${IMPORTSFROM[$DBINDEX]}" != "" ]; then
-				IMPORT_HOST=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $1 }' `
-				IMPORT_PORT=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $2 }' `
-				IMPORT_USER=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $3 }' `
-				IMPORT_PASS=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $4 }' `
-				IMPORT_NAME=`echo "${IMPORTSFROM[$DBINDEX]}" | awk -F":" '{ print $5 }' `
-
-				if [ "$IMPORT_HOST" == "" ]; then IMPORT_HOST="127.0.0.1"; fi
-				if [ "$IMPORT_PORT" == "" ]; then IMPORT_PORT="3306"; fi
-				if [ "$IMPORT_USER" == "" ]; then IMPORT_USER="root"; fi
-
-				if [ "$IMPORT_PASS" != "" -a "$IMPORT_NAME" != "" ]; then
-					echo -ne "\E[1;33;45mImporting $IMPORT_NAME database from $IMPORT_HOST"; tput sgr0; echo -ne "\n"
-					mysqldump -u "$IMPORT_USER" --password="$IMPORT_PASS" --host="$IMPORT_HOST" --port="$IMPORT_PORT" "$IMPORT_NAME" > "./export.sql" 2>>$LOGFILE
-					if test -e "./export.sql" -a -r "./export.sql" -a -f "./export.sql"; then
-						mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD "${DBNAMES[$DBINDEX]}" < "./export.sql" >>$LOGFILE 2>>$LOGFILE
-					fi
-					rm -f "./export.sql" >>$LOGFILE 2>>$LOGFILE
-				fi
-
-			fi
-
-			if [ "${RUNCOMMANDS[$DBINDEX]}" != "" ]
-			then
-				echo -ne "\E[1;29;40mExecuting the command configured for database $DBINDEX..."; tput sgr0; echo
-				${RUNCOMMANDS[$DBINDEX]} >>$LOGFILE 2>>$LOGFILE
-			fi
-
-		fi
-	done
+	fixUserAccessAndPrivileges
+	performAfterStartUserConfigTasks
 	checkStartSuccess
 }
 
