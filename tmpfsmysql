@@ -6,53 +6,20 @@
 #/etc/init/tmpfsmysql.conf
 #sudo service tmpfsmysql start
 
-SOCKET_FILE='/tmp/tmpfs-mysql/tmpfs-mysqld.sock'
+function initVars {
+	SOCKET_FILE='/tmp/tmpfs-mysql/tmpfs-mysqld.sock'
 
-CONFIG_FILE='tmpfsmysql.cfg'
+	CONFIG_FILE='tmpfsmysql.cfg'
 
-LOGFILE='./tmpfsmysql.log'
-LOGFILE_LINES=1000
+	LOGFILE='./tmpfsmysql.log'
+	LOGFILE_LINES=1000
 
-MESSAGE_INSTALLING_MYSQL="Installing the new mysql database in the tmpfs directory..."
-MESSAGE_STARTING_MYSQL="Starting the tmpfs mysql server with specific parameters in order to use the tmpfs datadir..."
-MESSAGE_SUDO_ACCESS_REQUIRED="\nThe script needs sudo access in order to work\n"
-
-
-# Prompt user for sudo password only if needed
-sudo -nv 2> /dev/null
-if [ $? == 1 ]; then
-	echo -e $MESSAGE_SUDO_ACCESS_REQUIRED
-	sudo -v >>$LOGFILE
-fi
-
-
-
-function checkForMySQL {
-	local MYSQLDINSTALLED=`sudo which mysqld 2>>$LOGFILE`
-	if [ "$MYSQLDINSTALLED" == "" ]
-	then
-		echo ""
-		echo "You don't seem to have MySQL server installed! Please install it before running this script."
-		echo ""
-		exit 0
-	fi
+	MESSAGE_INSTALLING_MYSQL="Installing the new mysql database in the tmpfs directory..."
+	MESSAGE_STARTING_MYSQL="Starting the tmpfs mysql server with specific parameters in order to use the tmpfs datadir..."
+	MESSAGE_SUDO_ACCESS_REQUIRED="\nThe script needs sudo access in order to work\n"
 }
-checkForMySQL
 
-MYSQL_VERSION_RAW=`sudo mysqld --version 2>>$LOGFILE`
-SERVER_MODE='MySQL'
-
-if [[ "$MYSQL_VERSION_RAW" == *"MariaDB"* ]]; then
-	SERVER_MODE='MariaDB'
-fi
-
-MYSQL_VERSION_XX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_XXX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 $3 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_Xxx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_xXx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $2 }' | awk -F"-" '{ print $1 }'`
-MYSQL_VERSION_xxX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $3 }' | awk -F"-" '{ print $1 }'`
-
-function LOAD_CONFIG
+function loadConfig
 {
 	if test -e "$CONFIG_FILE" -a -r "$CONFIG_FILE" -a -f "$CONFIG_FILE"
 	then
@@ -82,11 +49,47 @@ RUNCOMMANDS[0]=''\n" > "$CONFIG_FILE"
 	source "$CONFIG_FILE"
 	fi
 }
-LOAD_CONFIG
 
+function populatePID {
+	PID=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
+}
 
-if [ "$1" == "" ]
-then
+function populateServerVersionVariables {
+	MYSQL_VERSION_RAW=`sudo mysqld --version 2>>$LOGFILE`
+	SERVER_MODE='MySQL'
+
+	if [[ "$MYSQL_VERSION_RAW" == *"MariaDB"* ]]; then
+		SERVER_MODE='MariaDB'
+	fi
+
+	MYSQL_VERSION_XX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_XXX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 $3 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_Xxx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_xXx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $2 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_xxX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $3 }' | awk -F"-" '{ print $1 }'`
+}
+
+function sudoStateCheck {
+	# Prompt user for sudo password only if needed
+	sudo -nv 2> /dev/null
+	if [ $? == 1 ]; then
+		echo -e $MESSAGE_SUDO_ACCESS_REQUIRED
+		sudo -v >>$LOGFILE
+	fi
+}
+
+function checkForMySQL {
+	local MYSQLDINSTALLED=`sudo which mysqld 2>>$LOGFILE`
+	if [ "$MYSQLDINSTALLED" == "" ]
+	then
+		echo ""
+		echo "You don't seem to have MySQL server installed! Please install it before running this script."
+		echo ""
+		exit 0
+	fi
+}
+
+function displayMenu {
 	echo -ne "\n\E[1;32;40mTMPFS-MYSQL server management tool"
 	tput sgr0
 
@@ -117,9 +120,65 @@ then
 	echo " checkdump     - Check if the dump file configured in DUMPFILE exists and is readable."
 	echo -e ""
 	exit 0
-fi
+}
 
-PID=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
+function handleMenuChoice {
+	if [ "$1" == "" ]; then
+		displayMenu
+	fi
+
+	if [ "$1" == "client" ]; then
+		menuActionConnectAsClient
+	fi
+
+	if [ "$1" == "showdb" ]; then
+		menuActionShowDb
+	fi
+
+	if [ "$1" == "createdb" ]; then
+		menuActionCreateDb $1 $2
+	fi
+
+	if [ "$1" == "dropdb" ]; then
+		menuActionDropDb $1 $2
+	fi
+
+	if [ "$1" == "checkdump" ]; then
+		menuActionCheckSQLdumpFile $1 $2
+	fi
+
+	if [ "$1" == "stop" ]; then
+		menuActionStop
+	fi
+
+	if [ "$1" == "status" ]; then
+		menuActionStatus
+	fi
+
+	if [ "$1" == "kill" ]; then
+		menuActionKill
+	fi
+
+	if [ "$1" == "store" ]; then
+		menuActionStore
+	fi
+
+	if [ "$1" == "load" ]; then
+		menuActionLoad
+	fi
+
+	if [ "$1" == "store-clear" ]; then
+		menuActionStoreClear
+	fi
+
+	if [ "$1" == "usage" ]; then
+		menuActionUsage
+	fi
+
+	if [ "$1" == "start" ] || [ "$1" == "restart" ]; then
+		menuActionStartRestart
+	fi
+}
 
 function nicelyStopTmpfsServer {
 	if [ "$PID" != "" ]; then
@@ -178,7 +237,32 @@ function dbServerStarter {
 	/bin/sleep 1
 }
 
-function checkSQLdumpFile {
+function checkStartSuccess {
+	local PIDONSTART=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
+	if [ "$PIDONSTART" != "" ]
+	then
+		echo -ne "\E[1;29;42mThe tmpfs mysql server has started"; tput sgr0; echo -ne '\n'
+		echo "The password for the tmpfs-mysql server is '$PASSWORD' and the port is '$PORT'."
+	else
+		echo -ne "\E[1;29;41mThe tmpfs mysql server failed to start "; tput sgr0; echo -ne '\n'
+	fi
+	echo -ne "\n"
+}
+
+function rotateLogFile {
+	if test -e "$LOGFILE" -a -r "$LOGFILE" -a -f "$LOGFILE"
+	then
+		logfileLines=`wc -l $LOGFILE | awk '{print $1}'`
+
+		if [ "${logfileLines}" -gt 1000 ]; then
+			cp "$LOGFILE" "$LOGFILE".bak
+			tail -n $LOGFILE_LINES "$LOGFILE".bak > "$LOGFILE"
+			rm -f "$LOGFILE".bak
+		fi
+	fi
+}
+
+function menuActionCheckSQLdumpFile {
 	if [ "$1" == "" ]; then
 		echo -ne "\E[1;33;43mNo database index from the config was specified, assuming 0..."; tput sgr0; echo -ne "\n"
 		local CHKDUMPINDEX=0
@@ -198,106 +282,43 @@ function checkSQLdumpFile {
 		tput sgr0
 		echo ""
 	fi
+
+	echo ""
+	exit 0
 }
 
-if [ "$1" == "status" ]
-then
-	if [ "$PID" != "" ]
-	then
-		echo -ne "\nThe tmpfs mysql server seems to be "; echo -ne '\E[1;29;42m'" running "; tput sgr0
-		echo -e "\n"
-		exit 0
-	else
-		echo -ne "\nThe tmpfs mysql server seems to be "; echo -ne '\E[1;29;41m'" down "; tput sgr0
-		echo -e "\n"
-		exit 1
-	fi
-fi
-
-function checkStartSuccess {
-	local PIDONSTART=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
-	if [ "$PIDONSTART" != "" ]
-	then
-		echo -ne "\E[1;29;42mThe tmpfs mysql server has started"; tput sgr0; echo -ne '\n'
-		echo "The password for the tmpfs-mysql server is '$PASSWORD' and the port is '$PORT'."
-	else
-		echo -ne "\E[1;29;41mThe tmpfs mysql server failed to start "; tput sgr0; echo -ne '\n'
-	fi
-	echo -ne "\n"
-}
-
-if [ "$1" == "client" ]
-then
+function menuActionConnectAsClient {
 	echo -ne '\n\E[3;29;44m'"Logging into the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD 2>>$LOGFILE
 	exit 0
-fi
+}
 
-if [ "$1" == "showdb" ]
-then
+function menuActionShowDb {
 	echo -ne '\n\E[3;29;44m'"Showing databases on the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'show databases' 2>>$LOGFILE
 	echo ""
 	exit 0
-fi
+}
 
-if [ "$1" == "createdb" ]
-then
+function menuActionCreateDb {
 	echo -ne '\n\E[3;29;44m'"Creating database $2 on the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "create database if not exists $2" 2>>$LOGFILE
 	echo ""
 	exit 0
-fi
+}
 
-if [ "$1" == "dropdb" ]
-then
+function menuActionDropDb {
 	echo -ne '\n\E[3;29;44m'"Dropping database $2 from the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "drop database if exists $2" 2>>$LOGFILE
 	echo ""
 	exit 0
-fi
+}
 
-if [ "$1" == "checkdump" ]
-then
-	checkSQLdumpFile $2
-	echo ""
-	exit 0
-fi
-
-if [ "$1" == "stop" ]
-then
-	nicelyStopTmpfsServer
-	echo "The tmpfs mysql server instance has been stopped."
-	echo ""
-	exit 0
-fi
-
-if [ "$1" == "kill" ]
-then
-	killByPID
-	MYSQLSERVICEPID=`sudo cat /var/run/mysqld/mysqld.pid 2>/dev/null`
-	echo -e "You gave the kill order, we'll now stop the normal mysql server if it is running\n and kill any other instances of the mysqld daemon..."
-	if [ "$MYSQLSERVICEPID" != "" ]
-	then
-		echo "Gracefully stopping the normal mysql server and killing any other mysqld process..."
-		sudo service mysql stop >>$LOGFILE 2>>$LOGFILE
-		/bin/sleep 1
-	fi
-	sudo killall mysqld >>$LOGFILE 2>>$LOGFILE
-	/bin/sleep 1
-	if [ "$MYSQLSERVICEPID" != "" ]
-	then
-		echo "Starting up the normal mysql server..."
-		sudo service mysql restart >>$LOGFILE 2>>$LOGFILE #&
-	fi
-	exit 0
-fi
-
-if [ "$1" == "store" ]; then
+function menuActionStore {
 	echo -e "Storing the tmpfs-mysql server datadir into the persist folder..."
 
 	nicelyStopTmpfsServer
@@ -311,10 +332,10 @@ if [ "$1" == "store" ]; then
 
 	dbServerStarter
 	echo -e "...completed persisting the tmpfs-mysql datadir."
-fi
+}
 
-# need to handle cases where load is called before tmpfs-mysql is started and we need to create the tmpfs folder
-if [ "$1" == "load" ]; then
+function menuActionLoad {
+	# need to handle cases where load is called before tmpfs-mysql is started and we need to create the tmpfs folder
 	persistFolderDatadir=`pwd`/persist/datadir
 
 	if ! ( test -e "$persistFolderDatadir" -a -r "$persistFolderDatadir" -a -d "$persistFolderDatadir" )
@@ -337,9 +358,9 @@ if [ "$1" == "load" ]; then
 	dbServerStarter
 
 	echo -e "...completed loading tmpfs-mysql datadir from the persist folder."
-fi
+}
 
-if [ "$1" == "store-clear" ]; then
+function menuActionStoreClear {
 	echo -e "Clearing the persist folder..."
 
 	persistFolderDatadir=`pwd`/persist/datadir
@@ -348,14 +369,13 @@ if [ "$1" == "store-clear" ]; then
 	sudo rm -rf "$persistFolderDatadir"
 
 	echo -e "...completed clearing the persist folder."
-fi
+}
 
-if [ "$1" == "usage" ]; then
-	usedMB=`sudo du -sm /tmp/tmpfs-mysql | awk '{ print $1 }'`; echo -e "\n\E[1;39;46m Memory used \E[0m\E[1;39;44m ${usedMB} of ${TMPFS_SIZE} MB \E[0m\n"
-fi
+function menuActionUsage {
+		usedMB=`sudo du -sm /tmp/tmpfs-mysql | awk '{ print $1 }'`; echo -e "\n\E[1;39;46m Memory used \E[0m\E[1;39;44m ${usedMB} of ${TMPFS_SIZE} MB \E[0m\n"
+}
 
-if [ "$1" == "start" ] || [ "$1" == "restart" ]
-then
+function menuActionStartRestart {
 	killByPID
 
 	echo "Delete old temporary file system in RAM..."
@@ -466,18 +486,54 @@ then
 
 		fi
 	done
-
 	checkStartSuccess
+}
 
-fi
+function menuActionStop {
+	nicelyStopTmpfsServer
+	echo "The tmpfs mysql server instance has been stopped."
+	echo ""
+	exit 0
+}
 
-if test -e "$LOGFILE" -a -r "$LOGFILE" -a -f "$LOGFILE"
-then
-	logfileLines=`wc -l $LOGFILE | awk '{print $1}'`
-
-	if [ "${logfileLines}" -gt 1000 ]; then
-		cp "$LOGFILE" "$LOGFILE".bak
-		tail -n $LOGFILE_LINES "$LOGFILE".bak > "$LOGFILE"
-		rm -f "$LOGFILE".bak
+function menuActionStatus {
+	if [ "$PID" != "" ]
+	then
+		echo -ne "\nThe tmpfs mysql server seems to be "; echo -ne '\E[1;29;42m'" running "; tput sgr0
+		echo -e "\n"
+		exit 0
+	else
+		echo -ne "\nThe tmpfs mysql server seems to be "; echo -ne '\E[1;29;41m'" down "; tput sgr0
+		echo -e "\n"
+		exit 1
 	fi
-fi
+}
+
+function menuActionKill {
+	killByPID
+	MYSQLSERVICEPID=`sudo cat /var/run/mysqld/mysqld.pid 2>/dev/null`
+	echo -e "You gave the kill order, we'll now stop the normal mysql server if it is running\n and kill any other instances of the mysqld daemon..."
+	if [ "$MYSQLSERVICEPID" != "" ]
+	then
+		echo "Gracefully stopping the normal mysql server and killing any other mysqld process..."
+		sudo service mysql stop >>$LOGFILE 2>>$LOGFILE
+		/bin/sleep 1
+	fi
+	sudo killall mysqld >>$LOGFILE 2>>$LOGFILE
+	/bin/sleep 1
+	if [ "$MYSQLSERVICEPID" != "" ]
+	then
+		echo "Starting up the normal mysql server..."
+		sudo service mysql restart >>$LOGFILE 2>>$LOGFILE #&
+	fi
+	exit 0
+}
+
+initVars
+sudoStateCheck
+checkForMySQL
+populateServerVersionVariables
+loadConfig
+populatePID
+handleMenuChoice $1 $2
+rotateLogFile
