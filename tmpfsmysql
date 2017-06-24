@@ -19,18 +19,21 @@ function initVars {
 	MESSAGE_SUDO_ACCESS_REQUIRED="\nThe script needs sudo access in order to work\n"
 }
 
-function loadConfig
-{
-	if test -e "$CONFIG_FILE" -a -r "$CONFIG_FILE" -a -f "$CONFIG_FILE"
-	then
-		source "$CONFIG_FILE"
-	else
-		touch "$CONFIG_FILE"
+function loadConfig {
+	if ! ( test -e "$CONFIG_FILE" -a -r "$CONFIG_FILE" -a -f "$CONFIG_FILE" ); then
+		createConfig
+	fi
 
-		echo -e "\n\E[1;29;45mLooks like this is the first run on the script, we'll now create\E[0m"
-		echo -e "\E[1;29;45mconfig file $CONFIG_FILE in the current folder.\E[0m"
+	source "$CONFIG_FILE"
+}
 
-		printf "# tmpfs filesystem size in MB, values below 256 are not recommended\n\
+function createConfig {
+	echo -e "\n\E[1;29;45mLooks like this is the first run on the script, we'll now create\E[0m"
+	echo -e "\E[1;29;45mconfig file $CONFIG_FILE in the current folder.\E[0m"
+
+	touch "$CONFIG_FILE"
+
+	printf "# tmpfs filesystem size in MB, values below 256 are not recommended\n\
 TMPFS_SIZE=256\n\
 PORT=3344\n\
 PASSWORD='drowssap'\n\
@@ -46,8 +49,6 @@ DUMPFILES[0]=''\n\
 # import database, host:port:user:pass:dbname\n\
 IMPORTSFROM[0]='::::'\n\
 RUNCOMMANDS[0]=''\n" > "$CONFIG_FILE"
-	source "$CONFIG_FILE"
-	fi
 }
 
 function populatePID {
