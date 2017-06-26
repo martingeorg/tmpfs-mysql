@@ -1,11 +1,5 @@
 #!/bin/bash
 
-#sudo systemctl daemon-reload
-#sudo systemctl restart tmpfsmysql.service
-
-#/etc/init/tmpfsmysql.conf
-#sudo service tmpfsmysql start
-
 function initVars {
 	TMPFS_FOLDER='/tmp/tmpfs-mysql'
 	SOCKET_FILE="$TMPFS_FOLDER/tmpfs-mysqld.sock"
