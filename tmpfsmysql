@@ -50,6 +50,7 @@ function createConfig {
 	DBNAMES[0]=''
 	DUMPFILES[0]=''
 	# import database, host:port:user:pass:dbname
+	# if host, port or user are not provided, they will default to 127.0.0.1, 3306 and root respectively
 	IMPORTSFROM[0]='::::'
 	RUNCOMMANDS[0]=''
 	CONFIGCONTENT
@@ -85,7 +86,7 @@ function sudoStateCheck {
 }
 
 function checkForMySQL {
-	local MYSQLDINSTALLED=`sudo which mysqld 2>>$LOGFILE`
+	local MYSQLDINSTALLED=`which mysqld 2>>$LOGFILE`
 	if [ "$MYSQLDINSTALLED" == "" ]
 	then
 		echo ""
@@ -129,6 +130,19 @@ function displayMenu {
 }
 
 function handleMenuChoice {
+	# call sudoStateCheck only if the requested action needs it
+	# populatePID requires sudo, so we include the 'status' action as well
+	if [ "$1" == "status" -o "$1" == "usage" -o "$1" == "store" -o "$1" == "load" -o "$1" == "stop" -o "$1" == "kill" -o "$1" == "start" -o "$1" == "restart" ]
+	then
+		sudoStateCheck
+	fi
+
+	if [ "$1" == "status" -o "$1" == "store" -o "$1" == "load" -o "$1" == "stop" -o "$1" == "kill" -o "$1" == "start" -o "$1" == "restart" ]
+	then
+		populatePID
+	fi
+
+	# now lets see what action has been requested
 	if [ "$1" == "" ]; then
 		displayMenu
 	fi
@@ -578,10 +592,8 @@ function menuActionKill {
 }
 
 initVars
-sudoStateCheck
 checkForMySQL
 populateServerVersionVariables
 loadConfig
-populatePID
 handleMenuChoice $1 $2
 rotateLogFile
