@@ -7,7 +7,8 @@
 #sudo service tmpfsmysql start
 
 function initVars {
-	SOCKET_FILE='/tmp/tmpfs-mysql/tmpfs-mysqld.sock'
+	TMPFS_FOLDER='/tmp/tmpfs-mysql'
+	SOCKET_FILE="$TMPFS_FOLDER/tmpfs-mysqld.sock"
 
 	CONFIG_FILE='tmpfsmysql.cfg'
 
@@ -56,7 +57,7 @@ function createConfig {
 }
 
 function populatePID {
-	PID=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
+	PID=`sudo cat $TMPFS_FOLDER/tmpfs-mysqld.pid 2>/dev/null`
 }
 
 function populateServerVersionVariables {
@@ -109,7 +110,7 @@ function displayMenu {
 	echo " status        - Check whether the tmpfs mysql server is running."
 	echo "                 Script exit status will be 0 if the tmpfs mysql server is running, 1 if it's not."
 	echo " kill          - Kill any other instances of the mysqld daemon besides the normal MySQL server."
-	echo -ne "                 \E[1;31;49mIt will however gracefully restart the normal MySQL server!"; tput sgr0
+	echo -ne "                 \E[2;31;49mIt will however gracefully restart the normal MySQL server!"; tput sgr0
 	echo -e "\n"
 	echo " showdb        - Show a list of the databases on the tmpfs mysql server."
 	echo -ne " createdb      - Create database with the given name. Example \E[1;36;44m./tmpfsmysql createdb testdb"; tput sgr0
@@ -202,33 +203,33 @@ function killByPID {
 
 function cleanTmpfsFilesystem {
 	echo "Delete the in memory temporary file system..."
-	sudo umount -l /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-	sudo rm -rf /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
+	sudo umount -l $TMPFS_FOLDER >>$LOGFILE 2>>$LOGFILE
+	sudo rm -rf $TMPFS_FOLDER >>$LOGFILE 2>>$LOGFILE
 }
 
 function prepareTmpfsFilesystem {
 	cleanTmpfsFilesystem
 
 	echo "Creating temporary file system in RAM..."
-	sudo mkdir /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
-	sudo mount -t tmpfs -o size="$TMPFS_SIZE"M tmpfs /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
+	sudo mkdir $TMPFS_FOLDER >>$LOGFILE 2>>$LOGFILE
+	sudo mount -t tmpfs -o size="$TMPFS_SIZE"M tmpfs $TMPFS_FOLDER >>$LOGFILE 2>>$LOGFILE
 
-	sudo chown mysql:mysql /tmp/tmpfs-mysql
-	sudo -u mysql mkdir /tmp/tmpfs-mysql/datadir
+	sudo chown mysql:mysql $TMPFS_FOLDER
+	sudo -u mysql mkdir $TMPFS_FOLDER/datadir
 }
 
 function installBaseDatabaseMySQLold {
-	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
+	sudo mysql_install_db --user=mysql --datadir=$TMPFS_FOLDER/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 }
 
 function installBaseDatabaseMySQLnew {
-	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
+	sudo -u mysql mysqld --initialize-insecure --user=mysql --datadir=$TMPFS_FOLDER/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 }
 
 function installBaseDatabaseinitMariaDB {
-	sudo mysql_install_db --user=mysql --datadir=/tmp/tmpfs-mysql/datadir >>$LOGFILE 2>>$LOGFILE
+	sudo mysql_install_db --user=mysql --datadir=$TMPFS_FOLDER/datadir >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
 }
 
@@ -254,8 +255,8 @@ function dbServerInstaller {
 
 function dbServerStarter {
 	echo $MESSAGE_STARTING_MYSQL
-	sudo -u mysql mysqld --datadir=/tmp/tmpfs-mysql/datadir --pid-file=/tmp/tmpfs-mysql/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
-	--log-error=/tmp/tmpfs-mysql/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
+	sudo -u mysql mysqld --datadir=$TMPFS_FOLDER/datadir --pid-file=$TMPFS_FOLDER/tmpfs-mysqld.pid --socket=$SOCKET_FILE --port=$PORT \
+	--log-error=$TMPFS_FOLDER/error.log --bind-address=0.0.0.0 --innodb_flush_log_at_trx_commit=2 --performance_schema=0 $MYSQLDPARAMS >>$LOGFILE 2>>$LOGFILE &
 	/bin/sleep 1
 }
 
@@ -355,7 +356,7 @@ function performAfterStartUserConfigTasks {
 }
 
 function checkStartSuccess {
-	local PIDONSTART=`sudo cat /tmp/tmpfs-mysql/tmpfs-mysqld.pid 2>/dev/null`
+	local PIDONSTART=`sudo cat $TMPFS_FOLDER/tmpfs-mysqld.pid 2>/dev/null`
 	if [ "$PIDONSTART" != "" ]
 	then
 		echo -ne "\E[1;29;42mThe tmpfs mysql server has started"; tput sgr0; echo -ne '\n'
@@ -437,7 +438,7 @@ function menuActionDropDb {
 
 function menuActionStore {
 
-	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
+	if ! ( test -e $TMPFS_FOLDER/datadir -a -r $TMPFS_FOLDER/datadir -a -d $TMPFS_FOLDER/datadir )
 	then
 		echo -e "\n\E[3;31;40mThe tmpfs-mysql server doesn't seem to have been started, we cannot copy from it's datadir. Exiting with status 1.\E[0m\n"
 		exit 1
@@ -456,7 +457,7 @@ function menuActionStore {
 
 	sudo rm -rf "$persistFolderDatadir"
 	mkdir -p "$persistFolder"
-	sudo cp -pr /tmp/tmpfs-mysql/datadir "$persistFolderDatadir"
+	sudo cp -pr $TMPFS_FOLDER/datadir "$persistFolderDatadir"
 
 	dbServerStarter
 	echo -e "...completed persisting the tmpfs-mysql datadir."
@@ -465,7 +466,7 @@ function menuActionStore {
 function menuActionLoad {
 	# need to handle cases where load is called before tmpfs-mysql is started and we need to create the tmpfs folder
 
-	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
+	if ! ( test -e $TMPFS_FOLDER/datadir -a -r $TMPFS_FOLDER/datadir -a -d $TMPFS_FOLDER/datadir )
 	then
 		echo -e "\n\E[3;31;40mThe tmpfs-mysql server doesn't seem to have been started, we cannot copy to it's datadir. Exiting with status 1.\E[0m\n"
 		exit 1
@@ -485,10 +486,10 @@ function menuActionLoad {
 
 	echo -e "We are about to load the $persistFolderDatadir folder as tmpfs-mysql datadir";
 
-	sudo rm -rf /tmp/tmpfs-mysql/datadir
+	sudo rm -rf $TMPFS_FOLDER/datadir
 	# figure out a better way than sleep, to wait for rm to complete and have the filesystem stats updated
 	sleep 2
-	sudo cp -pr "$persistFolderDatadir" /tmp/tmpfs-mysql/datadir
+	sudo cp -pr "$persistFolderDatadir" $TMPFS_FOLDER/datadir
 
 	dbServerStarter
 
@@ -507,13 +508,13 @@ function menuActionStoreClear {
 }
 
 function menuActionUsage {
-	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
+	if ! ( test -e $TMPFS_FOLDER/datadir -a -r $TMPFS_FOLDER/datadir -a -d $TMPFS_FOLDER/datadir )
 	then
 		echo -e "The tmpfs-mysql server doesn't seem to have been started, we cannot fetch stats.\nExiting with status 1."
 		exit 1
 	fi
 
-		usedMB=`sudo du -sm /tmp/tmpfs-mysql | awk '{ print $1 }'`; echo -e "\n\E[1;39;46m Memory used \E[0m\E[1;39;44m ${usedMB} of ${TMPFS_SIZE} MB \E[0m\n"
+		usedMB=`sudo du -sm $TMPFS_FOLDER | awk '{ print $1 }'`; echo -e "\n\E[1;39;46m Memory used \E[0m\E[1;39;44m ${usedMB} of ${TMPFS_SIZE} MB \E[0m\n"
 }
 
 function menuActionStartRestart {
