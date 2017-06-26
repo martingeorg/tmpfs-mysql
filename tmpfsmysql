@@ -200,10 +200,14 @@ function killByPID {
 	fi
 }
 
-function prepareTmpfsFilesystem {
-	echo "Delete old temporary file system in RAM..."
+function cleanTmpfsFilesystem {
+	echo "Delete the in memory temporary file system..."
 	sudo umount -l /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
 	sudo rm -rf /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
+}
+
+function prepareTmpfsFilesystem {
+	cleanTmpfsFilesystem
 
 	echo "Creating temporary file system in RAM..."
 	sudo mkdir /tmp/tmpfs-mysql >>$LOGFILE 2>>$LOGFILE
@@ -408,7 +412,7 @@ function menuActionConnectAsClient {
 }
 
 function menuActionShowDb {
-	echo -ne '\n\E[3;29;44m'"Showing databases on the tmpfs mysql server..."; tput sgr0
+	echo -ne "\n\E[3;29;44mShowing databases on the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e 'show databases' 2>>$LOGFILE
 	echo ""
@@ -416,7 +420,7 @@ function menuActionShowDb {
 }
 
 function menuActionCreateDb {
-	echo -ne '\n\E[3;29;44m'"Creating database $2 on the tmpfs mysql server..."; tput sgr0
+	echo -ne "\n\E[3;29;44mCreating database $2 on the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "create database if not exists $2" 2>>$LOGFILE
 	echo ""
@@ -424,7 +428,7 @@ function menuActionCreateDb {
 }
 
 function menuActionDropDb {
-	echo -ne '\n\E[3;29;44m'"Dropping database $2 from the tmpfs mysql server..."; tput sgr0
+	echo -ne "\n\E[3;29;44mDropping database $2 from the tmpfs mysql server..."; tput sgr0
 	echo ""
 	mysql -u tmpfs --host=0.0.0.0 --port=$PORT --password=$PASSWORD -e "drop database if exists $2" 2>>$LOGFILE
 	echo ""
@@ -435,7 +439,7 @@ function menuActionStore {
 
 	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
 	then
-		echo -e "The tmpfs-mysql server doesn't seem to have been started, we cannot copy from it's datadir.\nExiting with status 1."
+		echo -e "\n\E[3;31;40mThe tmpfs-mysql server doesn't seem to have been started, we cannot copy from it's datadir. Exiting with status 1.\E[0m\n"
 		exit 1
 	fi
 
@@ -463,7 +467,7 @@ function menuActionLoad {
 
 	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
 	then
-		echo -e "The tmpfs-mysql server doesn't seem to have been started, we cannot copy to it's datadir.\nExiting with status 1."
+		echo -e "\n\E[3;31;40mThe tmpfs-mysql server doesn't seem to have been started, we cannot copy to it's datadir. Exiting with status 1.\E[0m\n"
 		exit 1
 	fi
 
@@ -503,6 +507,12 @@ function menuActionStoreClear {
 }
 
 function menuActionUsage {
+	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
+	then
+		echo -e "The tmpfs-mysql server doesn't seem to have been started, we cannot fetch stats.\nExiting with status 1."
+		exit 1
+	fi
+
 		usedMB=`sudo du -sm /tmp/tmpfs-mysql | awk '{ print $1 }'`; echo -e "\n\E[1;39;46m Memory used \E[0m\E[1;39;44m ${usedMB} of ${TMPFS_SIZE} MB \E[0m\n"
 }
 
@@ -523,7 +533,8 @@ function menuActionStartRestart {
 function menuActionStop {
 	nicelyStopTmpfsServer
 	echo "The tmpfs mysql server instance has been stopped."
-	echo ""
+	cleanTmpfsFilesystem
+	echo -e "Done"
 	exit 0
 }
 
@@ -543,15 +554,20 @@ function menuActionStatus {
 function menuActionKill {
 	killByPID
 	MYSQLSERVICEPID=`sudo cat /var/run/mysqld/mysqld.pid 2>/dev/null`
+
 	echo -e "You gave the kill order, we'll now stop the normal mysql server if it is running\n and kill any other instances of the mysqld daemon..."
+
 	if [ "$MYSQLSERVICEPID" != "" ]
 	then
 		echo "Gracefully stopping the normal mysql server and killing any other mysqld process..."
 		sudo service mysql stop >>$LOGFILE 2>>$LOGFILE
 		/bin/sleep 1
 	fi
+
 	sudo killall mysqld >>$LOGFILE 2>>$LOGFILE
 	/bin/sleep 1
+	cleanTmpfsFilesystem
+
 	if [ "$MYSQLSERVICEPID" != "" ]
 	then
 		echo "Starting up the normal mysql server..."
