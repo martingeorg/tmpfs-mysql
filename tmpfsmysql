@@ -62,18 +62,18 @@ function populatePID {
 }
 
 function populateServerVersionVariables {
-	MYSQL_VERSION_RAW=`sudo mysqld --version 2>>$LOGFILE`
+	MYSQL_VERSION_RAW=`mysqld --version 2>>$LOGFILE`
 	SERVER_MODE='MySQL'
 
 	if [[ "$MYSQL_VERSION_RAW" == *"MariaDB"* ]]; then
 		SERVER_MODE='MariaDB'
 	fi
 
-	MYSQL_VERSION_XX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 }' | awk -F"-" '{ print $1 }'`
-	MYSQL_VERSION_XXX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 $2 $3 }' | awk -F"-" '{ print $1 }'`
-	MYSQL_VERSION_Xxx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $1 }' | awk -F"-" '{ print $1 }'`
-	MYSQL_VERSION_xXx=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $2 }' | awk -F"-" '{ print $1 }'`
-	MYSQL_VERSION_xxX=`sudo mysqld --version 2>/dev/null | awk '{ print $3 }' | awk -F"." '{ print $3 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_XX=`echo "$MYSQL_VERSION_RAW" | awk '{ print $3 }' | awk -F"." '{ print $1 $2 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_XXX=`echo "$MYSQL_VERSION_RAW" | awk '{ print $3 }' | awk -F"." '{ print $1 $2 $3 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_Xxx=`echo "$MYSQL_VERSION_RAW" | awk '{ print $3 }' | awk -F"." '{ print $1 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_xXx=`echo "$MYSQL_VERSION_RAW" | awk '{ print $3 }' | awk -F"." '{ print $2 }' | awk -F"-" '{ print $1 }'`
+	MYSQL_VERSION_xxX=`echo "$MYSQL_VERSION_RAW" | awk '{ print $3 }' | awk -F"." '{ print $3 }' | awk -F"-" '{ print $1 }'`
 }
 
 function sudoStateCheck {
