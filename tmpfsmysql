@@ -432,15 +432,26 @@ function menuActionDropDb {
 }
 
 function menuActionStore {
+
+	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
+	then
+		echo -e "The tmpfs-mysql server doesn't seem to have been started, we cannot copy from it's datadir.\nExiting with status 1."
+		exit 1
+	fi
+
 	echo -e "Storing the tmpfs-mysql server datadir into the persist folder..."
 
 	nicelyStopTmpfsServer
 
 	sleep 4
 
+	persistFolder=`pwd`/persist
 	persistFolderDatadir=`pwd`/persist/datadir
-	echo -e "We are about to delete the $persistFolderDatadir folder";
+
+	echo -e "We are about to delete the current data in the $persistFolderDatadir folder";
+
 	sudo rm -rf "$persistFolderDatadir"
+	mkdir -p "$persistFolder"
 	sudo cp -pr /tmp/tmpfs-mysql/datadir "$persistFolderDatadir"
 
 	dbServerStarter
@@ -449,11 +460,18 @@ function menuActionStore {
 
 function menuActionLoad {
 	# need to handle cases where load is called before tmpfs-mysql is started and we need to create the tmpfs folder
+
+	if ! ( test -e /tmp/tmpfs-mysql/datadir -a -r /tmp/tmpfs-mysql/datadir -a -d /tmp/tmpfs-mysql/datadir )
+	then
+		echo -e "The tmpfs-mysql server doesn't seem to have been started, we cannot copy to it's datadir.\nExiting with status 1."
+		exit 1
+	fi
+
 	persistFolderDatadir=`pwd`/persist/datadir
 
 	if ! ( test -e "$persistFolderDatadir" -a -r "$persistFolderDatadir" -a -d "$persistFolderDatadir" )
 	then
-		echo -e "No datadir is present in the persist folder, exiting with status 1!"
+		echo -e "\nNo datadir is present in the persist folder, exiting with status 1!\n"
 		exit 1
 	fi
 
